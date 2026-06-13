@@ -23,19 +23,28 @@ export const characters: CharacterDefinition[] = [
     debug: false,
     status: 'ready',
     notes:
-      'Custom rigged chibi: backward snapback, over-ear headphones, oversized open jersey blowing in the wind, jean shorts, True Blue-style sneakers. Real walk cycle with step glow synced to the feet.'
+      'Custom rigged chibi in a black LO-FI hoodie (hood up), full-length jeans, and chunky black sneakers. Relaxed lo-fi walk cycle with glowing footsteps, and floating music notes that follow them into any scene.'
   },
   {
-    id: 'fox-chibi',
-    label: 'Fox Chibi (GLB reference)',
-    controller: 'glb-walker',
-    modelUrl:
-      '/assets/characters/fox-chibi/source/a_chibi_style_image_of_a_female_character_with_fox_ears_and_a_ta.glb',
-    rotationY: Math.PI,
-    scale: 3.05,
+    id: 'flying-hero',
+    label: 'Flying Hero (MetroCity)',
+    controller: 'flying-hero',
+    rotationY: 0, // built facing -Z: back to the camera, flying away down the road
+    scale: 1.12,
+    position: { x: 0, y: 0, z: 0 },
+    walk: {
+      // flyer reuses a few walk fields: hover frequency, hover bob, cloth/hair wind
+      strideHz: 0.5,
+      bobAmount: 0.13,
+      windStrength: 1.05
+    },
+    // keep-clear flight corridor so jungle canopy/vines never clip the airborne pose
+    clearance: { radius: 2.6, baseY: 1.6, topY: 6.6 },
+    // a flyer covers ground a little faster than a stroll
+    speedScale: 1.3,
     debug: false,
-    status: 'reference',
+    status: 'ready',
     notes:
-      'Uploaded AI-generated GLB. Inspected with scripts/inspect-glb.mjs: single static mesh, no skeleton, no animations — kept only as a scale/silhouette reference.'
+      'Procedural flying superhero for MetroCity (swappable everywhere). A Black woman with voluminous curly hair in a pink colorway suit and starred cape, held in a forward-leaning flight pose — fist leading, legs streamed back, cape and hair billowing. Flight FX: speed lines, power aura, hover bob, drifting ground shadow, and a neon RGB strobe when the RGB toggle is on. Declares a clearance corridor so props (e.g. jungle trees) never collide.'
   }
 ];

@@ -1,7 +1,7 @@
 import type { CharacterDefinition, ControllerKind } from '../registry/types';
 import type { CharacterController, Rng } from './controller';
 import { createRetroKidWalker } from './createRetroKidWalker';
-import { createFoxChibiWalker } from './createFoxChibiWalker';
+import { createFlyingHero } from './createFlyingHero';
 
 export type { CharacterController, Rng } from './controller';
 
@@ -9,7 +9,7 @@ type CharacterFactory = (character: CharacterDefinition, rnd: Rng) => CharacterC
 
 const factories: Record<ControllerKind, CharacterFactory> = {
   'retro-kid': createRetroKidWalker,
-  'glb-walker': createFoxChibiWalker
+  'flying-hero': createFlyingHero
 };
 
 /** Builds the controller for a registry entry. Scenes stay character-agnostic. */

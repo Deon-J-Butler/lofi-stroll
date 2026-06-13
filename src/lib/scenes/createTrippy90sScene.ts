@@ -26,7 +26,7 @@ const BPM = 140;
 const BEAT = BPM / 60;
 const CHAR_FPS = 30;            // stop-motion clock for the character
 const BOIL_FPS = 3;            // 90s line-boil clock for the world's inked outlines
-const WALK_SPEED = 1.75;        // slow lofi stroll pace
+const WALK_SPEED = 1.75 * (options.character.speedScale ?? 1);  // slow lofi stroll pace (a flyer nudges this up)
 
 // ---------- renderer / scene / camera ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1073,32 +1073,8 @@ const smogLayers: SmogLayer[] = [];
   }
 }
 
-// ---------- floating music notes ----------
-function noteTexture(ch) {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 64;
-  const g = c.getContext('2d');
-  g.font = 'bold 48px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  // g.strokeStyle = '#000'; g.lineWidth = 10; g.strokeText(ch, 32, 36);
-  g.fillStyle = '#000000'; g.fillText(ch, 32, 36);
-  // second pass: crisp inner stroke so the outline reads at small sizes
-  g.strokeStyle = '#111'; g.lineWidth = 3; g.strokeText(ch, 32, 36);
-  return new THREE.CanvasTexture(c);
-}
-const notes = [];
-for (let i = 0; i < 3; i++) {
-  const m = new THREE.SpriteMaterial({
-    map: noteTexture(i % 2 ? '♪' : '♫'),
-    transparent: true,
-    fog: false,
-    depthWrite: false,
-    depthTest: true
-  });
-  const s = new THREE.Sprite(m);
-  s.scale.set(0.55, 0.55, 1);
-  s.renderOrder = 30;
-  scene.add(s);
-  notes.push({ s, m, i });
-}
+// Music notes now travel with the retro-kid character (createRetroKidWalker),
+// so they follow the lo-fi kid into every scene instead of living in the world.
 
 // ---------- animation ----------
 let camZrot = 0;
@@ -1252,17 +1228,6 @@ function frame() {
     bl.m.opacity = 0.08;
   }
 
-  // Music notes: muted, soft — they drift gently
-  const NOTE_HUES = [0.860, 0.120, 0.720];
-  for (const n of notes) {
-    const life = (t * 0.28 + n.i / 3) % 1;
-    const side = n.i % 2 ? 1 : -1;
-    n.s.position.set(side * (1.1 + life * 0.9 + Math.sin(t * 1.2 + n.i * 2) * 0.10), 2.5 + life * 1.6, 0.4);
-    n.m.opacity = (1 - life) * 0.55;
-    n.m.color.setHSL(NOTE_HUES[n.i % 3], 0.40, 0.68);
-  }
-
-
   // 90s ink boil on its own gentle clock
   if (!reduceMotion) {
     const boilIdx = Math.floor(t * BOIL_FPS);
@@ -1295,7 +1260,7 @@ return {
   renderer,
   scene,
   camera,
-  setGradient(on: boolean) { gradientOn = on; },
+  setGradient(on: boolean) { gradientOn = on; characterController.setGradient?.(on); },
   setMoon(on: boolean) { moonOn = on; },
   destroy() {
     disposed = true;

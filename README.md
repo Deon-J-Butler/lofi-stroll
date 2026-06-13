@@ -15,7 +15,7 @@ Current focus:
 - Keep the original trippy 90s scenery stable.
 - Build a clean character/scene registry system.
 - Use a custom rigged/procedural 90s chibi as the default walker.
-- Keep the uploaded fox/chibi GLB as a reference asset only.
+- Build fully procedural characters (no GLB pipeline) — e.g. the flying hero.
 - Support future character and scenery swaps.
 
 Long-term direction:
@@ -71,7 +71,7 @@ Do **not** add `.github/` to `.gitignore`; deployment workflows should be commit
 src/lib/
   registry/      scene, character, and preset metadata
     types.ts       CharacterDefinition, WalkSettings, StepGlowSettings, SceneDefinition, StudioPreset
-    characters.ts  registered characters: retro-kid default, fox-chibi reference
+    characters.ts  registered characters: retro-kid default, flying-hero
     scenes.ts      registered scenes: trippy-90s
     presets.ts     scene + character combinations
 
@@ -82,7 +82,7 @@ src/lib/
     controller.ts            shared CharacterController contract
     index.ts                 controller factory
     createRetroKidWalker.ts  custom procedural 90s chibi walker
-    createFoxChibiWalker.ts  static GLB reference walker
+    createFlyingHero.ts      procedural flying superhero (pink suit, cape, flight FX)
     common/stepGlowRig.ts    shared step glow, contact shadow, and rim light
 
   animation/     reusable animation math
@@ -164,26 +164,62 @@ group
         jersey panels
 ```
 
-### Fox Chibi GLB Reference
+### Flying Hero (MetroCity)
 
-Reference character:
+Flying superhero character (designed for MetroCity, swappable everywhere):
 
 ```ts
-controller: 'glb-walker'
+controller: 'flying-hero'
 ```
 
-This is the uploaded AI-generated chibi GLB. It is kept for comparison because it helped establish rough scale, chibi proportions, and cloak-like fabric motion.
+Like the retro-kid, this is a fully procedural, jointed character — but instead of a
+walk cycle it holds a forward-leaning flight pose and runs a *flight idle*.
 
-The model should **not** be treated as the final character pipeline. It has been inspected as a static single-mesh GLB with no usable skeleton or animation clips, so it cannot produce a real walk cycle without rebuilding or rigging.
+Design goals:
 
-Use it as:
+- a Black woman with voluminous curly hair (swept back, fluttering in the flight wind)
+- pink colorway costume (magenta suit, deep-plum boots/gloves, light-pink trim, gold belt)
+- a billowing cape with a star emblem
+- classic flight silhouette: fist leading, legs streamed back together, head lifted
+- flight FX: rushing speed lines, a soft pink power aura + rim light, hover bob, and a
+  faint drifting ground shadow far below to sell the altitude
 
-- silhouette reference
-- scale reference
-- temporary comparison asset
-- reminder of the cloak/fabric motion that inspired the oversized jersey
+It reuses a few `walk` fields for tuning: `strideHz` → hover frequency, `bobAmount` →
+hover bob height, `windStrength` → cape/hair billow. It uses no step-glow rig (no feet
+on the ground), and it declares a **clearance** corridor (see below).
 
-Do not use it as the final walking character unless it is replaced with a properly rigged version.
+Joint hierarchy:
+
+```txt
+group
+  flight                (hover bob + bank + speed lines + aura)
+    body                (yaw + scale + forward flight pitch)
+      pelvis
+        left/right hips → knees → ankles → pointed boots (trailing)
+        spine
+          shoulders → elbows → fists (one leading, one trailing)
+          neck → head → curly hair
+          cape pivot → billowing starred cape
+```
+
+### Clearance — keeping elevated characters collision-free
+
+Characters are placed at the apex of the rolling planet, so every prop eventually
+sweeps over them. A grounded walker is short and narrow and the existing prop layouts
+already miss it — but an elevated/airborne character occupies space up where tree
+canopies, vines, and branches live. To keep designs swappable *and* collision-free, a
+character can declare a keep-clear cylinder:
+
+```ts
+clearance: { radius: 2.6, baseY: 1.6, topY: 6.6 } // world units
+```
+
+Scenes that scatter props near the path consult `clearLateralDistance()`
+(`scenes/common/planetStage.ts`) and push any prop whose footprint would intrude the
+column outward — carving a clear flight corridor. The jungle does this for its trees
+(tall trees only pass their thin trunk through the band, so their wide canopy is left
+overhanging overhead; short trees are cleared fully). Characters that omit `clearance`
+(the walkers) are completely unaffected.
 
 ## Art direction
 
@@ -231,60 +267,40 @@ Future scenes should live in `src/lib/scenes/` and be registered in `src/lib/reg
 
 ## Adding or tuning a character
 
-1. Drop model assets into:
+Characters are fully procedural — built from jointed Three.js primitives, no GLB
+pipeline. To add one:
 
-```txt
-public/assets/characters/<id>/source/
-```
-
-2. Inspect GLBs before wiring them into the scene:
-
-```bash
-node scripts/inspect-glb.mjs public/assets/characters/<id>/source/model.glb
-```
-
-Check for:
-
-- animations
-- skeletons/skins
-- mesh hierarchy
-- bounds
-- front/back orientation
-
+1. Implement a builder in `src/lib/characters/` that returns a `CharacterController`
+   (`{ group, update(qt, frameIdx), setGradient?, destroy() }`). Build it facing **-Z**.
+2. Add its controller kind to `ControllerKind` in `src/lib/registry/types.ts` and
+   register the builder in `src/lib/characters/index.ts`.
 3. Register the character in `src/lib/registry/characters.ts`:
 
 ```ts
 {
   id: 'my-character',
   label: 'My Character',
-  controller: 'glb-walker',
-  modelUrl: '/assets/characters/my-character/source/model.glb',
+  controller: 'my-controller',
   rotationY: 0,
   scale: 1,
   position: { x: 0, y: 0, z: 0 },
-  walk: {
+  walk: {              // ground walkers use the full set; flyers reuse a few fields
     strideHz: 1.25,
     legSwing: 0.55,
     windStrength: 1
   },
-  stepGlow: {
-    enabled: true,
-    size: 0.62,
-    intensity: 0.5,
-    rimLight: true
-  },
+  stepGlow: { enabled: true, size: 0.62, intensity: 0.5, rimLight: true },
+  // optional: elevated/airborne characters declare a keep-clear flight corridor
+  // clearance: { radius: 2.6, baseY: 1.6, topY: 6.6 },
+  // optional: a multiplier on the scene's stroll speed (a flyer moves a bit faster)
+  // speedScale: 1.3,
   debug: false,
   status: 'ready'
 }
 ```
 
-4. For a new procedural or rigged character:
-
-- implement a builder that returns `CharacterController`
-- add the controller kind to `ControllerKind`
-- register the builder in `src/lib/characters/index.ts`
-- reuse `sampleWalkPose` for gait math
-- reuse `createStepGlowRig` for ground glow
+Reuse `sampleWalkPose` (`animation/walkCycle.ts`) for gait math and
+`createStepGlowRig` for ground glow where it fits.
 
 ## Orientation debugging
 

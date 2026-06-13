@@ -12,5 +12,7 @@ export type CharacterController = {
    * @param frameIdx integer stop-motion frame index, for rng jitter
    */
   update: (qt: number, frameIdx: number) => void;
+  /** Optional: scenes forward their RGB-gradient toggle here (e.g. the hero's neon strobe). */
+  setGradient?: (on: boolean) => void;
   destroy: () => void;
 };

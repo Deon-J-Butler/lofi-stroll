@@ -34,7 +34,7 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
     roadWidth: ROAD_WIDTH,
     groundColor: 0x8d949c, // pale concrete plaza
     roadColor: 0x33363c, // asphalt
-    walkSpeed: 2.0,
+    walkSpeed: 2.0 * (options.character.speedScale ?? 1),
     bloom: { strength: 0.45, radius: 0.42, threshold: 0.84 }
   });
 
@@ -299,7 +299,8 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
   const sidewalkMat = new THREE.MeshToonMaterial({ color: 0xaeb4ba, side: THREE.DoubleSide });
   const crossRoadMat = new THREE.MeshToonMaterial({ color: 0x33363c, side: THREE.DoubleSide });
   const curbMat = new THREE.MeshBasicMaterial({ color: 0x15171c, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
-  const zebraMat = new THREE.MeshBasicMaterial({ color: 0xf4f6f8, side: THREE.DoubleSide, depthWrite: false });
+  // kept below the bloom threshold so crosswalks read crisp instead of glowing as the camera nears them
+  const zebraMat = new THREE.MeshBasicMaterial({ color: 0xc2c7cd, side: THREE.DoubleSide, depthWrite: false });
   const dashMats: THREE.MeshBasicMaterial[] = [];
 
   // continuous sidewalk slab on both sides of the avenue
@@ -778,6 +779,7 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
     camera,
     setGradient(on: boolean) {
       gradientOn = on;
+      character.setGradient?.(on);
     },
     setMoon(on: boolean) {
       moonOn = on;

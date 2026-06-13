@@ -5,7 +5,8 @@
 
   let selectedSceneId = scenes[0].id;
   let selectedCharacterId = characters[0].id;
-  let studioOpen = true;
+  // Start collapsed on small screens so the panel never covers the view on load.
+  let studioOpen = typeof window === 'undefined' || window.innerWidth > 700;
   let gradientOn = false;
   let moonOn = false;
   let hintGone = false;
@@ -64,7 +65,7 @@
     <p>{selectedScene.description}</p>
     <p>{selectedCharacter.notes}</p>
     <button class="mode-toggle" class:active={moonOn} on:click={() => (moonOn = !moonOn)}>
-      {moonOn ? 'moon' : 'sun'}
+      {moonOn ? 'night' : 'day'}
     </button>
     <button class="gradient-toggle" class:active={gradientOn} on:click={() => (gradientOn = !gradientOn)}>
       {gradientOn ? 'RGB on' : 'RGB off'}
@@ -82,6 +83,10 @@
     left: 18px;
     z-index: 5;
     width: min(330px, calc(100vw - 36px));
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
     color: rgba(255, 255, 255, 0.86);
     background: rgba(10, 5, 25, 0.62);
@@ -93,6 +98,8 @@
 
   .studio-panel.collapsed {
     width: auto;
+    max-height: none;
+    overflow: visible;
     padding: 10px;
   }
 
@@ -208,5 +215,62 @@
 
   #hint.gone {
     opacity: 0;
+  }
+
+  /* ---- mobile: keep the studio panel out of the way of the scene ---- */
+  @media (max-width: 700px) {
+    .studio-panel {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      width: auto;
+      max-height: 70dvh;
+      padding: 12px 14px;
+      border-radius: 14px;
+    }
+
+    .studio-panel.collapsed {
+      right: auto;
+      width: auto;
+      padding: 9px 12px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    label {
+      margin-bottom: 10px;
+    }
+
+    /* trim the descriptive copy so the panel stays short on a phone */
+    p {
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    select,
+    button {
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .keys {
+      display: none;
+    }
+
+    #hint {
+      bottom: 16px;
+      font-size: 11px;
+      padding: 7px 12px;
+    }
+  }
+
+  /* phones in landscape have very little height — keep the panel scrollable + short */
+  @media (max-height: 480px) {
+    .studio-panel {
+      max-height: calc(100dvh - 20px);
+    }
   }
 </style>

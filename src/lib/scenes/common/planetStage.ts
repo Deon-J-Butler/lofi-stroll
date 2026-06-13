@@ -24,6 +24,34 @@ export function makeRng() {
   };
 }
 
+export type ClearanceVolume = { radius: number; topY: number; baseY?: number };
+
+/**
+ * Keeps scene props out of an elevated/airborne character's keep-clear column.
+ *
+ * Every prop eventually rolls over the lane apex where the character floats, so
+ * a prop is safe iff its lateral offset keeps its whole silhouette outside the
+ * character's clearance cylinder. Given the lateral distance a scene *wants*, the
+ * prop's inward `reach` (how far it extends back toward the lane center at that
+ * distance) and the prop's vertical span, this returns the minimum lateral
+ * distance that clears the column — or `requested` unchanged when the character
+ * declares no clearance, or the prop is entirely above/below the band.
+ *
+ * All values are world units. Grounded walkers pass `undefined` and nothing moves.
+ */
+export function clearLateralDistance(
+  clearance: ClearanceVolume | undefined,
+  requested: number,
+  reach: number,
+  bottomY: number,
+  topY: number
+): number {
+  if (!clearance) return requested;
+  const base = clearance.baseY ?? 0;
+  if (topY <= base || bottomY >= clearance.topY) return requested; // no vertical overlap
+  return Math.max(requested, clearance.radius + reach);
+}
+
 export type PlanetStageOptions = {
   /** Sphere radius. Bigger = flatter, gentler arc across the frame. */
   R?: number;

@@ -415,6 +415,38 @@ export function createRetroKidWalker(character: CharacterDefinition, rnd: Rng): 
     frontPanels.push(pivot);
   }
 
+  // ---- floating lo-fi music notes that travel with the kid into any scene ----
+  function noteTexture(ch: string): THREE.CanvasTexture {
+    const cv = document.createElement('canvas');
+    cv.width = 64;
+    cv.height = 64;
+    const g = cv.getContext('2d')!;
+    g.font = 'bold 48px serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    // dark outline first (reads on bright skies), white fill so the per-note color tint shows
+    g.strokeStyle = 'rgba(10,6,20,0.9)';
+    g.lineWidth = 7;
+    g.strokeText(ch, 32, 36);
+    g.fillStyle = '#ffffff';
+    g.fillText(ch, 32, 36);
+    const tex = new THREE.CanvasTexture(cv);
+    disposables.push(tex);
+    return tex;
+  }
+  const noteTextures = [noteTexture('♪'), noteTexture('♫')];
+  const noteHues = [0.86, 0.12, 0.72];
+  const notes: Array<{ s: THREE.Sprite; m: THREE.SpriteMaterial; i: number }> = [];
+  for (let i = 0; i < 3; i++) {
+    const m = new THREE.SpriteMaterial({ map: noteTextures[i % 2], transparent: true, fog: false, depthWrite: false });
+    disposables.push(m);
+    const s = new THREE.Sprite(m);
+    s.scale.set(0.55, 0.55, 1);
+    s.renderOrder = 30;
+    group.add(s);
+    notes.push({ s, m, i });
+  }
+
   // ---- animation state (preallocated) ----
   const pose = createWalkPose();
   const footL = new THREE.Vector3();
@@ -514,6 +546,15 @@ export function createRetroKidWalker(character: CharacterDefinition, rnd: Rng): 
     group.worldToLocal(footR);
     const step = Math.abs(Math.cos(pose.phase));
     glowRig.update(pose.plantL, pose.plantR, step, footL.x, footL.z, footR.x, footR.z);
+
+    // music notes drift up beside the kid
+    for (const n of notes) {
+      const life = (qt * 0.28 + n.i / 3) % 1;
+      const side = n.i % 2 ? 1 : -1;
+      n.s.position.set(side * (1.0 + life * 0.85 + Math.sin(qt * 1.2 + n.i * 2) * 0.1), 2.3 + life * 1.6, 0.5);
+      n.m.opacity = (1 - life) * 0.78;
+      n.m.color.setHSL(noteHues[n.i % 3], 0.7, 0.62);
+    }
   }
 
   function destroy() {

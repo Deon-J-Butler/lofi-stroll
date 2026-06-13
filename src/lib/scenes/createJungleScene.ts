@@ -8,7 +8,7 @@
 // eyes hiding in the undergrowth.
 
 import * as THREE from 'three';
-import { createPlanetStage, makeRng, TAU } from './common/planetStage';
+import { createPlanetStage, makeRng, TAU, clearLateralDistance } from './common/planetStage';
 import { createCharacter } from '../characters';
 import type { CharacterDefinition, SceneDefinition } from '../registry/types';
 
@@ -25,7 +25,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     roadWidth: 5.6,
     groundColor: 0x2f4222, // mossy jungle floor
     roadColor: 0x6b4a2e, // mid dirt brown
-    walkSpeed: 1.7,
+    walkSpeed: 1.7 * (options.character.speedScale ?? 1),
     bloom: { strength: 0.5, radius: 0.4, threshold: 0.86 }
   });
 
@@ -452,6 +452,24 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     return { build: makeFernCluster, dist: roadHalfAng * R + 0.4 + r * 6 };
   }
 
+  // ---- keep an airborne character's flight corridor clear of trees ----
+  // If the active character declares a clearance column (e.g. the flying hero),
+  // push any tree that would intrude it outward. A tall tree only passes its thin
+  // trunk through the hero's band — its wide canopy clears overhead — so we cap its
+  // inward reach; a short tree puts its whole footprint in the band.
+  const clearance = options.character.clearance;
+  const _treeBox = new THREE.Box3();
+  const TRUNK_REACH = 1.6;
+  function clearTreeDist(grp, requested) {
+    if (!clearance) return requested;
+    grp.updateMatrixWorld(true);
+    _treeBox.setFromObject(grp);
+    const topY = _treeBox.max.y;
+    const reachFull = Math.max(Math.abs(_treeBox.min.x), _treeBox.max.x, Math.abs(_treeBox.min.z), _treeBox.max.z);
+    const reach = topY > clearance.topY + 1.5 ? Math.min(reachFull, TRUNK_REACH) : reachFull;
+    return clearLateralDistance(clearance, requested, reach, _treeBox.min.y, topY);
+  }
+
   // ---- nature doesn't space things out: a deep, overlapping carpet of trees ----
   for (let i = 0; i < 240; i++) {
     const a = rnd(i, 90) * TAU;
@@ -461,7 +479,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     const { grp, canopy } = build(treeSeed++);
     const sc = 0.8 + rnd(i, 98) * 0.8;
     grp.scale.setScalar(sc);
-    onPlanet(grp, a, side * lateral(dist), 0);
+    onPlanet(grp, a, side * lateral(clearTreeDist(grp, dist)), 0);
     grp.rotateY(rnd(i, 99) * TAU);
     trees.push({ grp: canopy, sway: 0.02 + rnd(i, 100) * 0.03, phase: rnd(i, 101) * TAU, baseRot: canopy.rotation.z });
   }
@@ -485,7 +503,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
       const sc = 1.0 + rnd(seed, 4) * 0.9;
       grp.scale.setScalar(sc);
       const dist = roadHalfAng * R + 0.6 + rnd(seed, 5) * 9;
-      onPlanet(grp, a, side * lateral(dist), 0);
+      onPlanet(grp, a, side * lateral(clearTreeDist(grp, dist)), 0);
       grp.rotateY(rnd(seed, 6) * TAU);
       trees.push({ grp: canopy, sway: 0.015 + rnd(seed, 7) * 0.025, phase: rnd(seed, 8) * TAU, baseRot: canopy.rotation.z });
     }
@@ -652,6 +670,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     camera,
     setGradient(on: boolean) {
       gradientOn = on;
+      character.setGradient?.(on);
     },
     setMoon(on: boolean) {
       moonOn = on;

@@ -8,12 +8,6 @@ export const presets: StudioPreset[] = [
     characterId: 'retro-kid'
   },
   {
-    id: 'v9-fox-chibi',
-    label: 'Trippy 90s + Fox Chibi (reference)',
-    sceneId: 'trippy-90s',
-    characterId: 'fox-chibi'
-  },
-  {
     id: 'jungle-retro-kid',
     label: 'Jungle Trail + Retro Kid',
     sceneId: 'jungle',
@@ -24,5 +18,17 @@ export const presets: StudioPreset[] = [
     label: 'MetroCity Avenue + Retro Kid',
     sceneId: 'metropolis',
     characterId: 'retro-kid'
+  },
+  {
+    id: 'metropolis-flying-hero',
+    label: 'MetroCity Avenue + Flying Hero',
+    sceneId: 'metropolis',
+    characterId: 'flying-hero'
+  },
+  {
+    id: 'jungle-flying-hero',
+    label: 'Jungle Trail + Flying Hero',
+    sceneId: 'jungle',
+    characterId: 'flying-hero'
   }
 ];
