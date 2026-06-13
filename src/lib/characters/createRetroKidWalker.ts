@@ -386,16 +386,19 @@ export function createRetroKidWalker(character: CharacterDefinition, rnd: Rng): 
     map: hoodieLogoTex,
     transparent: true,
     depthWrite: false,
+    depthTest: false,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4
   });
   disposables.push(logoMat);
-  const logoPatch = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.25), logoMat);
-  logoPatch.position.set(0, -0.21, 0.026);
-  logoPatch.renderOrder = 20;
-  clothPivot.add(logoPatch);
+  const logoGeo = new THREE.PlaneGeometry(0.86, 0.32);
+  disposables.push(logoGeo);
+  const logoPatch = new THREE.Mesh(logoGeo, logoMat);
+  logoPatch.position.set(0, 0.25, 0.58);
+  logoPatch.renderOrder = 60;
+  spine.add(logoPatch);
 
   // front hoodie panels (closed — not an open jersey)
   const frontPanels: THREE.Group[] = [];

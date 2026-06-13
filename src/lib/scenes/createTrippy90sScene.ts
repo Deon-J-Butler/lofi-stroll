@@ -36,7 +36,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 container.appendChild(renderer.domElement);
 
-let neonOn = false;
+let gradientOn = false;
 let moonOn = false;
 
 const scene = new THREE.Scene();
@@ -75,10 +75,10 @@ scene.add(sunLight);
 const rim = new THREE.DirectionalLight(0x88a8c0, 0.28);
 rim.position.set(6, 8, 10);
 scene.add(rim);
-// low point-light that neon-strobes — illuminates shoes from the lane markings below
-const neonFootLight = new THREE.PointLight(0xff00ff, 0, 5.5);
-neonFootLight.position.set(0, 0.35, 0);
-scene.add(neonFootLight);
+// low point-light that follows the RGB gradient below the shoes
+const gradientFootLight = new THREE.PointLight(0xffd0d8, 0, 5.5);
+gradientFootLight.position.set(0, 0.35, 0);
+scene.add(gradientFootLight);
 
 // ---------- sky backdrop + celestial body ----------
 const skyCv = document.createElement('canvas'); skyCv.width = 4; skyCv.height = 256;
@@ -1057,6 +1057,7 @@ const smogLayers: SmogLayer[] = [];
 
     smogMesh.position.set(0, 7.8 + i * 1.05, -52 - i * 7);
     smogMesh.renderOrder = 3;
+    smogMesh.visible = moonOn;
 
     scene.add(smogMesh);
 
@@ -1105,12 +1106,12 @@ let last = performance.now() / 1000;
 const _c = new THREE.Color();
 
 const groundGradientStops = [
-  new THREE.Color(0x5d353b),
-  new THREE.Color(0x2b252d),
-  new THREE.Color(0x37485e),
-  new THREE.Color(0x252933),
-  new THREE.Color(0x395444),
-  new THREE.Color(0x2a2428)
+  new THREE.Color(0xc57984),
+  new THREE.Color(0xb987a2),
+  new THREE.Color(0x78a7c8),
+  new THREE.Color(0x8aa4c7),
+  new THREE.Color(0x86bd95),
+  new THREE.Color(0xb3b778)
 ];
 
 function rollingGroundColor(out, phase) {
@@ -1205,21 +1206,8 @@ function frame() {
     }
   }
 
-  // Road markings + neon strobe
-  if (neonOn) {
-    // Slow gradient through a muted lofi palette: dusty teal → soft violet → dusky rose → warm mauve
-    // Range h=0.48–0.90, saturation kept low so it never pops neon-bright.
-    const nPhase = (t * 0.018) % 1.0;   // ~55 s full cycle — very slow
-    const nh = 0.48 + 0.42 * nPhase;    // teal (0.48) → violet (0.72) → rose (0.90)
-    const ns = 0.48 + 0.10 * Math.sin(t * 0.12);   // saturation 0.38–0.58
-    const nl = 0.40 + 0.05 * Math.sin(t * 0.20);   // lightness 0.35–0.45, never blown out
-    for (let i = 0; i < dashMats.length; i++)      dashMats[i].color.setHSL(nh, ns, nl);
-    for (let i = 0; i < stripMats.length; i++)     stripMats[i].color.setHSL(nh, ns, nl);
-    for (let i = 0; i < crosswalkMats.length; i++) crosswalkMats[i].color.setHSL(nh, ns * 0.85, nl * 0.90);
-    neonFootLight.color.setHSL(nh, ns, 0.38);
-    neonFootLight.intensity = 0.70;    // softer upward glow
-    bloomPass.strength = 0.50;
-    bloomPass.threshold = 0.88;
+  // Road markings + RGB gradient
+  if (gradientOn) {
     const roll = t * 0.035;
     const groundColor = rollingGroundColor(_c, roll);
     for (let i = 0; i < dashMats.length; i++) {
@@ -1231,22 +1219,24 @@ function frame() {
     for (let i = 0; i < crosswalkMats.length; i++) {
       crosswalkMats[i].color.copy(groundColor);
     }
-    neonFootLight.color.copy(groundColor);
-    neonFootLight.intensity = 0.46;
-    bloomPass.strength = 0.39;
-    bloomPass.threshold = 0.94;
+    gradientFootLight.color.copy(groundColor);
+    gradientFootLight.intensity = 0.52;
+    bloomPass.strength = 0.42;
+    bloomPass.threshold = 0.92;
   } else {
     // warm cream road markings
     for (let i = 0; i < dashMats.length; i++)      dashMats[i].color.setHSL(0.13, 0.35, 0.88);
     for (let i = 0; i < stripMats.length; i++)     stripMats[i].color.setHSL(0.12, 0.25, 0.90);
     for (let i = 0; i < crosswalkMats.length; i++) crosswalkMats[i].color.setHSL(0.12, 0.25, 0.90);
-    neonFootLight.intensity = Math.max(0, neonFootLight.intensity - dt * 4);
+    gradientFootLight.intensity = Math.max(0, gradientFootLight.intensity - dt * 4);
     bloomPass.strength = 0.38;
     bloomPass.threshold = 0.97;
   }
 
   // Thin smog bands: slow horizontal drift above the skyline only
   for (const sl of smogLayers) {
+    sl.mesh.visible = moonOn;
+    if (!moonOn) continue;
     sl.mesh.position.x = sl.baseX + Math.sin(t * sl.speed + sl.phase) * 7.5;
     sl.mesh.position.y = sl.baseY + Math.sin(t * 0.038 + sl.phase) * 0.28;
     sl.mesh.position.z = sl.baseZ + Math.sin(t * 0.025 + sl.phase) * 1.2;
@@ -1305,7 +1295,7 @@ return {
   renderer,
   scene,
   camera,
-  setNeon(on: boolean) { neonOn = on; },
+  setGradient(on: boolean) { gradientOn = on; },
   setMoon(on: boolean) { moonOn = on; },
   destroy() {
     disposed = true;

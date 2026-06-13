@@ -6,7 +6,7 @@
   let selectedSceneId = scenes[0].id;
   let selectedCharacterId = characters[0].id;
   let studioOpen = true;
-  let neonOn = false;
+  let gradientOn = false;
   let moonOn = false;
   let hintGone = false;
 
@@ -34,7 +34,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<ThreeStage scene={selectedScene} character={selectedCharacter} {neonOn} {moonOn} />
+<ThreeStage scene={selectedScene} character={selectedCharacter} {gradientOn} {moonOn} />
 
 <section class:collapsed={!studioOpen} class="studio-panel" aria-label="Lo-Fi Stroll Studio controls">
   <button class="panel-toggle" on:click={() => (studioOpen = !studioOpen)} aria-label="Toggle studio panel">
@@ -66,8 +66,8 @@
     <button class="mode-toggle" class:active={moonOn} on:click={() => (moonOn = !moonOn)}>
       {moonOn ? 'moon' : 'sun'}
     </button>
-    <button class="neon-toggle" class:active={neonOn} on:click={() => (neonOn = !neonOn)}>
-      {neonOn ? '⬤' : '○'} neon
+    <button class="gradient-toggle" class:active={gradientOn} on:click={() => (gradientOn = !gradientOn)}>
+      {gradientOn ? 'RGB on' : 'RGB off'}
     </button>
     <div class="keys">F fullscreen · H panel</div>
   {/if}
@@ -142,7 +142,7 @@
     color: rgba(255, 255, 255, 0.72);
   }
 
-  .neon-toggle {
+  .gradient-toggle {
     margin-top: 12px;
     width: 100%;
     color: #b8a4ad;
@@ -166,7 +166,7 @@
     transition: background 0.15s, box-shadow 0.15s;
   }
 
-  .neon-toggle.active {
+  .gradient-toggle.active {
     background: rgba(122, 92, 104, 0.14);
     border-color: rgba(188, 154, 166, 0.72);
     color: #d8c4cc;

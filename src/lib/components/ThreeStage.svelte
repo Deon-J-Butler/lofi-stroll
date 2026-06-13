@@ -5,7 +5,7 @@
 
   export let scene: SceneDefinition;
   export let character: CharacterDefinition;
-  export let neonOn: boolean = false;
+  export let gradientOn: boolean = false;
   export let moonOn: boolean = false;
 
   let host: HTMLDivElement;
@@ -34,7 +34,7 @@
     }
   }
 
-  $: if (experience) experience.setNeon?.(neonOn);
+  $: if (experience) experience.setGradient?.(gradientOn);
   $: if (experience) experience.setMoon?.(moonOn);
 
   onDestroy(() => {
