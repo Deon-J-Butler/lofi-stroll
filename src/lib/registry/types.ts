@@ -1,4 +1,4 @@
-export type SceneKind = 'trippy-90s';
+export type SceneKind = 'trippy-90s' | 'jungle' | 'metropolis';
 
 /** Which runtime controller builds/drives the character. */
 export type ControllerKind = 'retro-kid' | 'glb-walker';

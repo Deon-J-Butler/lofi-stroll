@@ -12,5 +12,17 @@ export const presets: StudioPreset[] = [
     label: 'Trippy 90s + Fox Chibi (reference)',
     sceneId: 'trippy-90s',
     characterId: 'fox-chibi'
+  },
+  {
+    id: 'jungle-retro-kid',
+    label: 'Jungle Trail + Retro Kid',
+    sceneId: 'jungle',
+    characterId: 'retro-kid'
+  },
+  {
+    id: 'metropolis-retro-kid',
+    label: 'MetroCity Avenue + Retro Kid',
+    sceneId: 'metropolis',
+    characterId: 'retro-kid'
   }
 ];

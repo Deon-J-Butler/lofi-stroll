@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { createTrippy90sScene } from '../scenes/createTrippy90sScene';
+  import { createScene } from '../scenes';
   import type { CharacterDefinition, SceneDefinition } from '../registry/types';
 
   export let scene: SceneDefinition;
@@ -9,14 +9,14 @@
   export let moonOn: boolean = false;
 
   let host: HTMLDivElement;
-  let experience: ReturnType<typeof createTrippy90sScene> | null = null;
+  let experience: ReturnType<typeof createScene> | null = null;
   let mounted = false;
   let bootKey = "";
 
   function boot() {
     if (!host) return;
     experience?.destroy();
-    experience = createTrippy90sScene(host, { scene, character });
+    experience = createScene(host, { scene, character });
     if (import.meta.env.DEV) (window as any).__experience = experience;
   }
 
