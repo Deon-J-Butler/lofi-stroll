@@ -33,10 +33,10 @@ export function createStepGlowRig(settings?: Partial<StepGlowSettings>): StepGlo
   glowCv.height = 128;
   const g = glowCv.getContext('2d');
   if (g) {
-    const grd = g.createRadialGradient(64, 64, 5, 64, 64, 62);
-    grd.addColorStop(0.0, 'rgba(255,235,148,0.95)');
-    grd.addColorStop(0.3, 'rgba(255,183,62,0.44)');
-    grd.addColorStop(1.0, 'rgba(255,183,62,0.00)');
+    const grd = g.createRadialGradient(64, 64, 4, 64, 64, 50);
+    grd.addColorStop(0.0, 'rgba(255,255,255,0.80)');
+    grd.addColorStop(0.36, 'rgba(238,245,255,0.34)');
+    grd.addColorStop(1.0, 'rgba(226,238,255,0.00)');
     g.fillStyle = grd;
     g.fillRect(0, 0, 128, 128);
   }
@@ -49,12 +49,13 @@ export function createStepGlowRig(settings?: Partial<StepGlowSettings>): StepGlo
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      depthTest: true,
       blending: THREE.AdditiveBlending
     });
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(cfg.size, cfg.size * 0.72), mat);
     glow.rotation.x = -Math.PI / 2;
-    glow.position.y = 0.02;
-    glow.renderOrder = 80;
+    glow.position.y = 0.028;
+    glow.renderOrder = 82;
     return glow;
   }
 
@@ -79,8 +80,8 @@ export function createStepGlowRig(settings?: Partial<StepGlowSettings>): StepGlo
 
   let rim: THREE.PointLight | null = null;
   if (cfg.rimLight) {
-    rim = new THREE.PointLight(0x8affff, 0.45, 4.5);
-    rim.position.set(0, 1.55, 1.15);
+    rim = new THREE.PointLight(0xffffff, 0.18, 2.8);
+    rim.position.set(0, 0.55, 0.65);
     group.add(rim);
   }
 
@@ -92,16 +93,18 @@ export function createStepGlowRig(settings?: Partial<StepGlowSettings>): StepGlo
 
     const lm = glowL.material as THREE.MeshBasicMaterial;
     const rm = glowR.material as THREE.MeshBasicMaterial;
-    lm.opacity = 0.06 + plantL * cfg.intensity;
-    rm.opacity = 0.06 + plantR * cfg.intensity;
-    glowL.scale.setScalar(0.88 + plantL * 0.34);
-    glowR.scale.setScalar(0.88 + plantR * 0.34);
+    const flashL = Math.pow(Math.max(0, plantL), 0.9);
+    const flashR = Math.pow(Math.max(0, plantR), 0.9);
+    lm.opacity = flashL * cfg.intensity;
+    rm.opacity = flashR * cfg.intensity;
+    glowL.scale.setScalar(0.82 + flashL * 0.22);
+    glowR.scale.setScalar(0.82 + flashR * 0.22);
 
     shadow.position.x = (lx + rx) / 2;
     shadow.scale.set(1 + step * 0.1, 1 + step * 0.04, 1);
     (shadow.material as THREE.MeshBasicMaterial).opacity = 0.18 + step * 0.1;
 
-    if (rim) rim.intensity = 0.32 + step * 0.2;
+    if (rim) rim.intensity = 0.08 + Math.max(flashL, flashR) * 0.22;
   }
 
   function dispose() {

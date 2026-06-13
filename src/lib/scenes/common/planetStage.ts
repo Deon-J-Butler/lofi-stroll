@@ -13,6 +13,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { createCameraRig } from './cameraRig';
 
 export const TAU = Math.PI * 2;
 
@@ -88,6 +89,7 @@ export function createPlanetStage(container: HTMLElement, opts: PlanetStageOptio
   const camera = new THREE.PerspectiveCamera(95, window.innerWidth / window.innerHeight, 0.1, 600);
   camera.position.set(0, 3.4, 7.6);
   camera.lookAt(0, 1.9, -10);
+  const cameraRig = createCameraRig(camera);
 
   // ---------- post ----------
   const composer = new EffectComposer(renderer);
@@ -253,6 +255,7 @@ export function createPlanetStage(container: HTMLElement, opts: PlanetStageOptio
     renderer,
     scene,
     camera,
+    cameraRig,
     composer,
     bloomPass,
     hemiLight,

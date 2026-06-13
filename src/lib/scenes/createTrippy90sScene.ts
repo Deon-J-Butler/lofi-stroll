@@ -5,6 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { createCharacter } from '../characters';
+import { createCameraRig } from './common/cameraRig';
 import type { CharacterDefinition, SceneDefinition } from '../registry/types';
 
 export type Trippy90sSceneOptions = {
@@ -45,6 +46,7 @@ scene.fog = new THREE.Fog(0x1a0b33, 42, 115);
 const camera = new THREE.PerspectiveCamera(95, window.innerWidth / window.innerHeight, 0.1, 400);
 camera.position.set(0, 3.4, 7.6);
 camera.lookAt(0, 1.9, -10);
+const cameraRig = createCameraRig(camera);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -1248,8 +1250,7 @@ function frame() {
     characterController.update(0, 0);
   }
 
-  camera.fov = 95 + (reduceMotion ? 0 : Math.sin(t * BEAT * TAU / 8) * 1.6);
-  camera.updateProjectionMatrix();
+  cameraRig.apply(reduceMotion ? 0 : Math.sin(t * BEAT * TAU / 8) * 1.6);
 
   composer.render();
   if (!disposed) rafId = requestAnimationFrame(frame);
@@ -1262,6 +1263,7 @@ return {
   camera,
   setGradient(on: boolean) { gradientOn = on; characterController.setGradient?.(on); },
   setMoon(on: boolean) { moonOn = on; },
+  setView(mode: 'default' | 'side') { cameraRig.setView(mode); },
   destroy() {
     disposed = true;
     if (rafId) cancelAnimationFrame(rafId);

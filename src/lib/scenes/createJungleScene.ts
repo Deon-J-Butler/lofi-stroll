@@ -29,7 +29,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     bloom: { strength: 0.5, radius: 0.4, threshold: 0.86 }
   });
 
-  const { scene, camera, planet, R, roadHalfAng, onPlanet, lateral, addPlanetPatch, hemiLight, sunLight, rim, bloomPass } = stage;
+  const { scene, camera, cameraRig, planet, R, roadHalfAng, onPlanet, lateral, addPlanetPatch, hemiLight, sunLight, rim, bloomPass } = stage;
 
   let moonOn = false;
   let gradientOn = false;
@@ -660,8 +660,7 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
       character.update(0, 0);
     }
 
-    camera.fov = 95 + (stage.reduceMotion ? 0 : Math.sin(t * 0.9) * 1.4);
-    camera.updateProjectionMatrix();
+    cameraRig.apply(stage.reduceMotion ? 0 : Math.sin(t * 0.9) * 1.4);
   });
 
   return {
@@ -674,6 +673,9 @@ export function createJungleScene(container: HTMLElement, options: JungleSceneOp
     },
     setMoon(on: boolean) {
       moonOn = on;
+    },
+    setView(mode: 'default' | 'side') {
+      cameraRig.setView(mode);
     },
     destroy() {
       stage.dispose(() => character.destroy());

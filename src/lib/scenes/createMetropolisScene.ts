@@ -38,7 +38,7 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
     bloom: { strength: 0.45, radius: 0.42, threshold: 0.84 }
   });
 
-  const { scene, camera, planet, roadHalfAng, onPlanet, lateral, addPlanetPatch, hemiLight, sunLight, rim, bloomPass } = stage;
+  const { scene, camera, cameraRig, planet, roadHalfAng, onPlanet, lateral, addPlanetPatch, hemiLight, sunLight, rim, bloomPass } = stage;
 
   let moonOn = false;
   let gradientOn = false;
@@ -769,8 +769,7 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
       character.update(0, 0);
     }
 
-    camera.fov = 95 + (stage.reduceMotion ? 0 : Math.sin(t * 0.8) * 1.0);
-    camera.updateProjectionMatrix();
+    cameraRig.apply(stage.reduceMotion ? 0 : Math.sin(t * 0.8) * 1.0);
   });
 
   return {
@@ -783,6 +782,9 @@ export function createMetropolisScene(container: HTMLElement, options: Metropoli
     },
     setMoon(on: boolean) {
       moonOn = on;
+    },
+    setView(mode: 'default' | 'side') {
+      cameraRig.setView(mode);
     },
     destroy() {
       stage.dispose(() => character.destroy());

@@ -16,8 +16,8 @@ export const characters: CharacterDefinition[] = [
     },
     stepGlow: {
       enabled: true,
-      size: 0.62,
-      intensity: 0.5,
+      size: 0.44,
+      intensity: 0.52,
       rimLight: true
     },
     debug: false,
@@ -27,7 +27,7 @@ export const characters: CharacterDefinition[] = [
   },
   {
     id: 'flying-hero',
-    label: 'Flying Hero (MetroCity)',
+    label: 'Flying Hero',
     controller: 'flying-hero',
     rotationY: 0, // built facing -Z: back to the camera, flying away down the road
     scale: 1.12,
@@ -45,6 +45,6 @@ export const characters: CharacterDefinition[] = [
     debug: false,
     status: 'ready',
     notes:
-      'Procedural flying superhero for MetroCity (swappable everywhere). A Black woman with voluminous curly hair in a pink colorway suit and starred cape, held in a forward-leaning flight pose — fist leading, legs streamed back, cape and hair billowing. Flight FX: speed lines, power aura, hover bob, drifting ground shadow, and a neon RGB strobe when the RGB toggle is on. Declares a clearance corridor so props (e.g. jungle trees) never collide.'
+      'Procedural flying superhero, swappable everywhere. A Black woman with voluminous curly hair in a pink colorway suit and starred cape, held in a forward-leaning flight pose — fist leading, legs streamed back, cape and hair billowing. Flight FX: speed lines, power aura, hover bob, drifting ground shadow, and RGB strobe when the RGB toggle is on. Declares a clearance corridor so props (e.g. jungle trees) never collide.'
   }
 ];

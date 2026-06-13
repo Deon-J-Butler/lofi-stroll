@@ -56,7 +56,7 @@ const FOREARM = 0.4;
 const NECK_Y = 0.74; // above pelvis
 const HEAD_R = 0.34;
 const CAPE_W = 1.34;
-const CAPE_LEN = 2.5;
+const CAPE_LEN = 1.86;
 
 // ---- flight tuning ----
 const HOVER_Y = 3.35; // body lift above the lane
@@ -245,11 +245,11 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
     const forearm = capsule(0.088, FOREARM - 0.12, SUIT, true);
     forearm.position.y = -FOREARM / 2;
     elbow.add(forearm);
-    // plum glove with pink cuff
+    // pink wrist cuff with bare brown hands
     const gloveCuff = mesh(new THREE.CylinderGeometry(0.095, 0.1, 0.07, 12), SUIT_TRIM, true, 1.04);
     gloveCuff.position.y = -FOREARM + 0.04;
     elbow.add(gloveCuff);
-    const fist = mesh(new THREE.SphereGeometry(0.105, 12, 9), SUIT_DARK, true, 1.07);
+    const fist = mesh(new THREE.SphereGeometry(0.105, 12, 9), SKIN, true, 1.07);
     fist.position.y = -FOREARM - 0.04;
     elbow.add(fist);
 
@@ -336,14 +336,49 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
 
   // ---- cape: a billowing starred panel pinned at the upper back ----
   const capePivot = new THREE.Group();
-  capePivot.position.set(0, SHOULDER_Y + 0.12, 0.16); // upper back, behind the shoulders
+  capePivot.position.set(0, SHOULDER_Y + 0.11, 0.12); // upper back, tucked in behind the shoulders
   capePivot.rotation.x = 0.95; // lays the cape well back so it streams over (not under) the trailing legs
   spine.add(capePivot);
 
   const capeTex = capeTexture();
   disposables.push(capeTex);
-  const capeMat = new THREE.MeshToonMaterial({ map: capeTex, side: THREE.DoubleSide });
+  // Cape draws as an opaque top visible layer so it reads as solid cloth over the
+  // body/legs instead of interleaving with them.
+  const capeMat = new THREE.MeshToonMaterial({
+    map: capeTex,
+    color: 0xffffff,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1,
+    alphaTest: 0,
+    blending: THREE.NormalBlending,
+    depthTest: false,
+    depthWrite: false
+  });
   disposables.push(capeMat);
+  const capeBackingMat = new THREE.MeshBasicMaterial({
+    color: CAPE,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1,
+    blending: THREE.NormalBlending,
+    depthTest: false,
+    depthWrite: false,
+    fog: false
+  });
+  disposables.push(capeBackingMat);
+  // dedicated cape outline (depth off too) so the ink hull sits just under the cape face
+  const capeOutlineMat = new THREE.MeshBasicMaterial({
+    color: INK,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 1,
+    blending: THREE.NormalBlending,
+    depthTest: false,
+    depthWrite: false,
+    fog: false
+  });
+  disposables.push(capeOutlineMat);
   const capeGeo = new THREE.PlaneGeometry(CAPE_W, CAPE_LEN, 7, 12);
   disposables.push(capeGeo);
   capeGeo.translate(0, -CAPE_LEN / 2, 0); // pin the top edge at the pivot
@@ -353,22 +388,28 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
       const x = pos.getX(i);
       const y = pos.getY(i);
       const yn = Math.max(0, -y / CAPE_LEN);
-      const flare = 1 + 0.34 * yn; // widens toward the hem
-      pos.setXYZ(i, x * flare, y, 0.34 * Math.pow(yn, 1.2)); // initial backward curl, draping over the legs
+      const taper = 0.56 + 0.72 * Math.pow(yn, 0.72); // narrow at shoulders, broad at hem
+      pos.setXYZ(i, x * taper, y, 0.34 * Math.pow(yn, 1.2)); // initial backward curl, draping over the legs
     }
     capeGeo.computeVertexNormals();
   }
   const capeBase = new Float32Array((capeGeo.attributes.position as THREE.BufferAttribute).array);
+  const capeBacking = new THREE.Mesh(capeGeo, capeBackingMat);
+  capeBacking.renderOrder = 240;
+  capePivot.add(capeBacking);
   const cape = new THREE.Mesh(capeGeo, capeMat);
-  const capeHull = new THREE.Mesh(capeGeo, outlineMat);
+  cape.renderOrder = 242;
+  const capeHull = new THREE.Mesh(capeGeo, capeOutlineMat);
   capeHull.scale.setScalar(1.04);
+  capeHull.renderOrder = 241;
   cape.add(capeHull);
   capePivot.add(cape);
+
   // a collar so the cape reads as attached, not floating
   const collar = mesh(new THREE.TorusGeometry(0.22, 0.06, 8, 16, Math.PI * 1.2), CAPE, true, 1.05);
   collar.rotation.x = -0.5;
   collar.rotation.y = Math.PI;
-  collar.position.set(0, SHOULDER_Y + 0.18, 0.02);
+  collar.position.set(0, SHOULDER_Y + 0.16, 0.015);
   spine.add(collar);
 
   // ===================================================================
@@ -434,21 +475,43 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
   flight.add(rim);
 
   // Ground shadow: stays on the road (in `group`, not `flight`) and only tracks the
-  // hero's lateral drift — small and faint because she's high up.
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x05030d, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+  // hero's lateral drift. A soft radial blob (not a hard plane) so it reads as a
+  // cast shadow on any ground; it shrinks/fades a little as she bobs higher.
+  const shadowCv = document.createElement('canvas');
+  shadowCv.width = 128;
+  shadowCv.height = 128;
+  {
+    const g = shadowCv.getContext('2d')!;
+    const grd = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grd.addColorStop(0, 'rgba(8,5,16,0.72)');
+    grd.addColorStop(0.5, 'rgba(8,5,16,0.34)');
+    grd.addColorStop(1, 'rgba(8,5,16,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 128, 128);
+  }
+  const shadowTex = new THREE.CanvasTexture(shadowCv);
+  disposables.push(shadowTex);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    map: shadowTex,
+    transparent: true,
+    opacity: 0.74,
+    depthWrite: false,
+    depthTest: false,
+    fog: false
+  });
   disposables.push(shadowMat);
-  const shadowGeo = new THREE.PlaneGeometry(1.5, 0.7);
+  const shadowGeo = new THREE.PlaneGeometry(3.0, 1.15);
   disposables.push(shadowGeo);
   const shadow = new THREE.Mesh(shadowGeo, shadowMat);
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, 0.02, 0.1);
-  shadow.renderOrder = 70;
+  shadow.position.set(0, 0.055, 0.0);
+  shadow.renderOrder = 118;
   group.add(shadow);
 
   // ===================================================================
-  //  RGB NEON STROBE — driven by the scene's RGB toggle via setGradient()
+  //  RGB GRADIENT STROBE — driven by the scene's RGB toggle via setGradient()
   // ===================================================================
-  // The suit, cape, belt and aura glow through a neon hue cycle, strobing on a
+  // The suit, cape, belt and aura glow through an RGB hue cycle, strobing on a
   // fast pulse. Driven by emissive so the base pink reads through and bloom catches it.
   const strobeMats = [toon(SUIT), toon(SUIT_DARK), toon(SUIT_TRIM), toon(BELT), capeMat];
   const _strobe = new THREE.Color();
@@ -522,8 +585,8 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
       const flap = 0.5 + 0.5 * wave;
       cpos.setXYZ(
         i,
-        bx + 0.14 * w * wave,
-        by + 0.12 * w * flap, // lifts the hem as it streams
+        bx + 0.13 * w * wave,
+        by + 0.28 * w * flap + 0.10 * yn, // lifts the hem so real legs can peek below it
         bz + 0.42 * w * flap + 0.12 * w * (0.5 + 0.5 * Math.sin(t * 2.1 + bx))
       );
     }
@@ -554,15 +617,18 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
     aura.scale.set(ap, ap, 1);
     rim.intensity = 0.6 + 0.25 * Math.sin(t * 2.4 + 1.0);
 
-    // neon RGB strobe across the costume + cape + aura when the RGB toggle is on
+    // RGB gradient strobe across the costume + cape + aura when the RGB toggle is on
     if (rgbOn) {
+      // Slower strobe (was sin(t*10) → ~a couple beats slower) and muted, lower-key
+      // colors: less saturation + a gentler peak so the bloom glows instead of
+      // throwing quick solar-flare bursts.
       for (let i = 0; i < strobeMats.length; i++) {
         const hue = (t * 0.4 + i * 0.13) % 1;
-        _strobe.setHSL(hue, 1.0, 0.55);
+        _strobe.setHSL(hue, 0.72, 0.5);
         strobeMats[i].emissive.copy(_strobe);
-        strobeMats[i].emissiveIntensity = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(t * 10 + i * 1.3), 2);
+        strobeMats[i].emissiveIntensity = 0.26 + 0.4 * Math.pow(0.5 + 0.5 * Math.sin(t * 5.2 + i * 1.3), 1.5);
       }
-      _strobe.setHSL((t * 0.4) % 1, 1.0, 0.62);
+      _strobe.setHSL((t * 0.4) % 1, 0.72, 0.56);
       auraMat.color.copy(_strobe);
       rim.color.copy(_strobe);
     } else {
@@ -578,9 +644,10 @@ export function createFlyingHero(character: CharacterDefinition, rnd: Rng): Char
     flight.getWorldPosition(_shadowWorld);
     group.worldToLocal(_shadowWorld);
     shadow.position.x = _shadowWorld.x;
+    shadow.position.z = _shadowWorld.z * 0.18;
     const lift = 0.5 + 0.5 * Math.sin(t * hoverHz * Math.PI * 2);
-    shadowMat.opacity = 0.2 - lift * 0.07;
-    shadow.scale.setScalar(1 + lift * 0.12);
+    shadowMat.opacity = 0.72 - lift * 0.18;
+    shadow.scale.set(1.12 - lift * 0.10, 0.88 - lift * 0.06, 1);
   }
 
   function destroy() {

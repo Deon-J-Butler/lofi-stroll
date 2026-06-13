@@ -31,6 +31,8 @@ const DENIM = 0x3b5a8f;
 const DENIM_CUFF = 0x6c8ec4;
 const SNEAKER_BLACK = 0x161616;
 const SNEAKER_BLACK_SOLE = 0x0e0e0e;
+const SNEAKER_STITCH = 0xe7e0d0; // cream midsole / laces / topstitching
+const SNEAKER_ACCENT = 0xc24a5a; // muted retro-red side swoosh
 const HAIR = 0x1b1410;
 
 // Skeleton dimensions (world units, before preset scale).
@@ -217,6 +219,38 @@ export function createRetroKidWalker(character: CharacterDefinition, rnd: Rng): 
     const collar = mesh(new THREE.CylinderGeometry(0.085, 0.1, 0.07, 10), HOODIE_DARK);
     collar.position.set(0, 0.06, 0.02);
     shoe.add(collar);
+
+    // ---- styling details (no ink hull — these are fine trim, not silhouette) ----
+    // cream midsole stripe between the dark upper and dark sole
+    const midsole = mesh(new THREE.BoxGeometry(0.205, 0.032, 0.405), SNEAKER_STITCH);
+    midsole.position.set(0, -0.072, -0.06);
+    shoe.add(midsole);
+
+    // angled side swoosh on each outer face, plus a faint topstitch line above it
+    for (const sx of [-1, 1] as const) {
+      const swoosh = mesh(new THREE.BoxGeometry(0.014, 0.06, 0.24), SNEAKER_ACCENT);
+      swoosh.position.set(sx * 0.1, -0.015, -0.05);
+      swoosh.rotation.x = 0.32; // low at the toe, sweeping up toward the heel
+      shoe.add(swoosh);
+
+      const sideStitch = mesh(new THREE.BoxGeometry(0.012, 0.012, 0.26), SNEAKER_STITCH);
+      sideStitch.position.set(sx * 0.101, 0.035, -0.04);
+      shoe.add(sideStitch);
+    }
+
+    // laces across the instep — three cream rungs sloping down toward the toe
+    const laceZ = [-0.02, -0.075, -0.13];
+    const laceY = [0.05, 0.04, 0.025];
+    for (let i = 0; i < laceZ.length; i++) {
+      const lace = mesh(new THREE.BoxGeometry(0.135, 0.02, 0.024), SNEAKER_STITCH);
+      lace.position.set(0, laceY[i], laceZ[i]);
+      shoe.add(lace);
+    }
+
+    // topstitched toe-cap seam where the toe meets the upper
+    const toeSeam = mesh(new THREE.BoxGeometry(0.17, 0.016, 0.016), SNEAKER_STITCH);
+    toeSeam.position.set(0, -0.025, -0.105);
+    shoe.add(toeSeam);
 
     return shoe;
   }
