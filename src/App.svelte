@@ -6,6 +6,8 @@
   let selectedSceneId = scenes[0].id;
   let selectedCharacterId = characters[0].id;
   let studioOpen = true;
+  let neonOn = false;
+  let moonOn = false;
   let hintGone = false;
 
   $: selectedScene = scenes.find((item) => item.id === selectedSceneId) ?? scenes[0];
@@ -32,7 +34,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<ThreeStage scene={selectedScene} character={selectedCharacter} />
+<ThreeStage scene={selectedScene} character={selectedCharacter} {neonOn} {moonOn} />
 
 <section class:collapsed={!studioOpen} class="studio-panel" aria-label="Lo-Fi Stroll Studio controls">
   <button class="panel-toggle" on:click={() => (studioOpen = !studioOpen)} aria-label="Toggle studio panel">
@@ -61,6 +63,12 @@
 
     <p>{selectedScene.description}</p>
     <p>{selectedCharacter.notes}</p>
+    <button class="mode-toggle" class:active={moonOn} on:click={() => (moonOn = !moonOn)}>
+      {moonOn ? 'moon' : 'sun'}
+    </button>
+    <button class="neon-toggle" class:active={neonOn} on:click={() => (neonOn = !neonOn)}>
+      {neonOn ? '⬤' : '○'} neon
+    </button>
     <div class="keys">F fullscreen · H panel</div>
   {/if}
 </section>
@@ -132,6 +140,44 @@
     font-size: 12px;
     line-height: 1.45;
     color: rgba(255, 255, 255, 0.72);
+  }
+
+  .neon-toggle {
+    margin-top: 12px;
+    width: 100%;
+    color: #b8a4ad;
+    border-color: rgba(184, 164, 173, 0.42);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .mode-toggle {
+    margin-top: 12px;
+    width: 100%;
+    color: #c9cbd0;
+    border-color: rgba(201, 203, 208, 0.38);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .neon-toggle.active {
+    background: rgba(122, 92, 104, 0.14);
+    border-color: rgba(188, 154, 166, 0.72);
+    color: #d8c4cc;
+    box-shadow: 0 0 10px rgba(140, 110, 120, 0.22);
+  }
+
+  .mode-toggle.active {
+    background: rgba(180, 186, 198, 0.14);
+    border-color: rgba(220, 224, 232, 0.72);
+    color: #eef0f4;
+    box-shadow: 0 0 12px rgba(160, 170, 190, 0.24);
   }
 
   .keys {

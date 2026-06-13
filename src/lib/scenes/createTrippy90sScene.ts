@@ -22,22 +22,25 @@ function rnd(i, salt) {
 }
 
 // ---------- tempo / clocks ----------
-const BPM = 80;
+const BPM = 140;
 const BEAT = BPM / 60;
-const CHAR_FPS = 8;            // stop-motion clock for the character
-const BOIL_FPS = 6;            // 90s line-boil clock for the world's inked outlines
-const WALK_SPEED = 4.2;        // ground speed kept from v3 — same surface roll rate
+const CHAR_FPS = 30;            // stop-motion clock for the character
+const BOIL_FPS = 3;            // 90s line-boil clock for the world's inked outlines
+const WALK_SPEED = 1.75;        // slow lofi stroll pace
 
 // ---------- renderer / scene / camera ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.85;
+renderer.toneMappingExposure = 1.05;
 container.appendChild(renderer.domElement);
 
+let neonOn = false;
+let moonOn = false;
+
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x1a0b33, 22, 80);
+scene.fog = new THREE.Fog(0x1a0b33, 42, 115);
 
 const camera = new THREE.PerspectiveCamera(95, window.innerWidth / window.innerHeight, 0.1, 400);
 camera.position.set(0, 3.4, 7.6);
@@ -47,9 +50,9 @@ const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.18,   // strength — subtle glow, only the sun corona and neon signs
-  0.40,   // radius
-  0.92    // threshold — only near-white elements bloom, everything else stays clean
+  0.38,   // very soft glow — washed-out lofi look
+  0.30,   // radius
+  0.97    // high threshold — almost nothing blooms
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
@@ -64,15 +67,20 @@ const onResize = () => {
 window.addEventListener('resize', onResize);
 
 // ---------- lights ----------
-scene.add(new THREE.HemisphereLight(0xbfa0ff, 0x40206a, 0.95));
-const sunLight = new THREE.DirectionalLight(0xffd9a0, 0.85);
+const hemiLight = new THREE.HemisphereLight(0x9080b8, 0x2a1440, 0.90);
+scene.add(hemiLight);
+const sunLight = new THREE.DirectionalLight(0xd4b890, 0.65);
 sunLight.position.set(0, 18, -40);
 scene.add(sunLight);
-const rim = new THREE.DirectionalLight(0x66e0ff, 0.35);
+const rim = new THREE.DirectionalLight(0x88a8c0, 0.28);
 rim.position.set(6, 8, 10);
 scene.add(rim);
+// low point-light that neon-strobes — illuminates shoes from the lane markings below
+const neonFootLight = new THREE.PointLight(0xff00ff, 0, 5.5);
+neonFootLight.position.set(0, 0.35, 0);
+scene.add(neonFootLight);
 
-// ---------- sky backdrop + melting sun ----------
+// ---------- sky backdrop + celestial body ----------
 const skyCv = document.createElement('canvas'); skyCv.width = 4; skyCv.height = 256;
 const skyTex = new THREE.CanvasTexture(skyCv);
 skyTex.magFilter = THREE.LinearFilter;
@@ -90,33 +98,41 @@ scene.add(sunMesh);
 
 function paintSky(t) {
   const g = skyCv.getContext('2d');
-  // Breathes gently in the warm sunset palette — never leaves purple-to-orange
-  const breathe = Math.sin(t * 0.07) * 0.5 + 0.5;
+  const breathe = Math.sin(t * 0.05) * 0.5 + 0.5;  // slower breath
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0,    `hsl(${252 + breathe * 16},72%,7%)`);    // deep indigo-black
-  grad.addColorStop(0.35, `hsl(${268 + breathe * 10},68%,18%)`);   // rich purple
-  grad.addColorStop(0.62, `hsl(${300 + breathe * 8},72%,30%)`);    // pink-violet
-  grad.addColorStop(0.83, `hsl(${330 + breathe * 6},80%,43%)`);    // rose-pink
-  grad.addColorStop(1,    `hsl(${32 + breathe * 10},90%,58%)`);    // golden-orange horizon
+  if (moonOn) {
+    grad.addColorStop(0,    `hsl(${228 + breathe * 5},18%,6%)`);
+    grad.addColorStop(0.34, `hsl(${232 + breathe * 4},14%,10%)`);
+    grad.addColorStop(0.64, `hsl(${238 + breathe * 3},11%,16%)`);
+    grad.addColorStop(0.86, `hsl(${246 + breathe * 2},9%,22%)`);
+    grad.addColorStop(1,    `hsl(${252 + breathe * 2},8%,28%)`);
+  } else {
+    grad.addColorStop(0,    `hsl(${246 + breathe * 8},32%,10%)`);    // muted deep indigo
+    grad.addColorStop(0.35, `hsl(${262 + breathe * 6},28%,20%)`);    // dusty purple
+    grad.addColorStop(0.62, `hsl(${285 + breathe * 5},30%,30%)`);    // faded mauve
+    grad.addColorStop(0.83, `hsl(${315 + breathe * 4},32%,38%)`);    // dusty rose
+    grad.addColorStop(1,    `hsl(${28 + breathe * 6},48%,48%)`);     // muted amber horizon
+  }
   g.fillStyle = grad; g.fillRect(0, 0, 4, 256);
   skyTex.needsUpdate = true;
 }
+
 function paintSun(t) {
   const g = sunCv.getContext('2d');
   g.clearRect(0, 0, 256, 256);
-  // Warm gold corona glow
+  // Faded warm corona glow
   const corona = g.createRadialGradient(128, 128, 42, 128, 128, 128);
-  corona.addColorStop(0,   'hsla(44, 100%, 72%, 0.92)');
-  corona.addColorStop(0.5, 'hsla(32, 100%, 62%, 0.45)');
-  corona.addColorStop(1,   'hsla(28, 100%, 55%, 0)');
+  corona.addColorStop(0,   'hsla(38, 55%, 68%, 0.75)');
+  corona.addColorStop(0.5, 'hsla(28, 45%, 55%, 0.30)');
+  corona.addColorStop(1,   'hsla(24, 40%, 48%, 0)');
   g.fillStyle = corona; g.fillRect(0, 0, 256, 256);
   g.save();
   g.beginPath(); g.arc(128, 128, 96, 0, TAU); g.clip();
-  // Retro gold base
-  g.fillStyle = 'hsl(44, 100%, 64%)';
+  // Dusty gold base
+  g.fillStyle = 'hsl(38, 48%, 58%)';
   g.fillRect(0, 0, 256, 256);
-  // Iconic lo-fi retro horizontal bands — only in the lower half
-  g.fillStyle = 'hsl(12, 95%, 50%)';
+  // Washed retro horizontal bands
+  g.fillStyle = 'hsl(18, 42%, 44%)';
   const scroll = reduceMotion ? 0 : (t * 9) % 28;
   for (let i = 0; i < 7; i++) {
     const bandH = 6 + i * 2;   // bands get thicker toward bottom
@@ -128,10 +144,62 @@ function paintSun(t) {
   sunTex.needsUpdate = true;
 }
 
+function paintMoon(t) {
+  const g = sunCv.getContext('2d');
+  g.clearRect(0, 0, 256, 256);
+
+  const glow = g.createRadialGradient(128, 128, 46, 128, 128, 128);
+  glow.addColorStop(0, 'rgba(178, 182, 188, 0.34)');
+  glow.addColorStop(0.48, 'rgba(118, 124, 134, 0.16)');
+  glow.addColorStop(1, 'rgba(50, 54, 64, 0)');
+  g.fillStyle = glow;
+  g.fillRect(0, 0, 256, 256);
+
+  g.save();
+  g.beginPath();
+  g.arc(128, 128, 82, 0, TAU);
+  g.clip();
+  const base = g.createRadialGradient(104, 92, 8, 128, 128, 95);
+  base.addColorStop(0, 'rgb(194, 194, 190)');
+  base.addColorStop(0.46, 'rgb(158, 160, 160)');
+  base.addColorStop(1, 'rgb(112, 116, 120)');
+  g.fillStyle = base;
+  g.fillRect(36, 36, 184, 184);
+
+  const craters = [
+    [92, 88, 15, 0.20], [148, 72, 10, 0.16], [170, 123, 18, 0.18],
+    [111, 144, 22, 0.15], [82, 158, 9, 0.18], [139, 174, 12, 0.14],
+    [132, 111, 7, 0.18], [180, 164, 7, 0.13]
+  ];
+  for (const [x, y, r, a] of craters) {
+    const crater = g.createRadialGradient(x - r * 0.28, y - r * 0.28, 1, x, y, r);
+    crater.addColorStop(0, `rgba(232, 232, 226, ${a * 0.45})`);
+    crater.addColorStop(0.48, `rgba(86, 90, 96, ${a})`);
+    crater.addColorStop(1, 'rgba(42, 46, 54, 0)');
+    g.fillStyle = crater;
+    g.beginPath();
+    g.arc(x, y, r, 0, TAU);
+    g.fill();
+  }
+
+  g.strokeStyle = 'rgba(226, 226, 220, 0.16)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 9; i++) {
+    const y = 70 + i * 14 + Math.sin(t * 0.12 + i) * 1.2;
+    g.beginPath();
+    g.moveTo(62, y);
+    g.bezierCurveTo(94, y - 4, 140, y + 5, 192, y - 2);
+    g.stroke();
+  }
+  g.restore();
+
+  sunTex.needsUpdate = true;
+}
+
 // ---------- THE PLANET: a true sphere, road on its great circle ----------
 const R = 30;                                   // sphere radius — its arc bows across the frame
-const STREET_COLOR = 0x12091d;                    // dark road tone from the red-circled sample
-const SIDEWALK_COLOR = 0x34214f;                  // lighter sidewalk/block tone from the yellow-circled sample
+const STREET_COLOR = 0x251840;                    // lightened road
+const SIDEWALK_COLOR = 0x4a3265;                  // lightened sidewalk/block
 const CURB_COLOR = 0x0d0618;
 const CITY_EDGE_W = 21.5;                         // lateral city width on each side of the walking road
 const GRID_BLOCKS = 8;                            // roughly 2–4 buildings per block between streets
@@ -320,8 +388,7 @@ function gridBlockAngle(blockIdx, ordinal, perBlock, clearanceWorld, seed) {
 }
 
 // ---------- melted 90s buildings with thick boiling outlines + drip cycles ----------
-const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x0d0618, side: THREE.BackSide });
-const DROP_OUTLINE = new THREE.MeshBasicMaterial({ color: 0x0d0618, side: THREE.BackSide });
+const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x100820, side: THREE.BackSide });
 const INK_LINE = new THREE.LineBasicMaterial({ color: 0x0d0618, transparent: true, opacity: 0.92 });
 const WINDOW_INK = new THREE.LineBasicMaterial({ color: 0x0d0618, transparent: true, opacity: 0.94, depthWrite: false });
 const FOUNDATION_TOP = 0.12;
@@ -362,20 +429,6 @@ function makeCenterEdgeInk(w, h, d, melt, side, seed) {
   return line;
 }
 
-function teardropGeometry() {
-  const profile = [
-    new THREE.Vector2(0.015, 0.98),
-    new THREE.Vector2(0.085, 0.70),
-    new THREE.Vector2(0.250, 0.33),
-    new THREE.Vector2(0.390, -0.08),
-    new THREE.Vector2(0.360, -0.46),
-    new THREE.Vector2(0.190, -0.82),
-    new THREE.Vector2(0.020, -0.98)
-  ];
-  const geo = new THREE.LatheGeometry(profile, 14);
-  geo.computeVertexNormals();
-  return geo;
-}
 
 function meltGeometry(w, h, d, melt, seed) {
   const geo = new THREE.BoxGeometry(w, h, d, 4, 8, 4);
@@ -701,11 +754,10 @@ function addWindowsToBuilding(grp, winMats, w, h, d, melt, side, seed, opts) {
 }
 
 const buildings = [];   // { grp, hull, mat, winMats[], foundationMats, seed, baseQ, depth }
-const drips = [];       // { mesh, mat, link, roofY, fallTo, period, phase }
 
 addCityGridSurface();
 
-function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts, dripGeo }) {
+function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts }) {
   const b = side * (lat / R);
   const grp = new THREE.Group();
 
@@ -748,56 +800,30 @@ function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts, dr
   };
   buildings.push(rec);
 
-  if (opts.drips) {
-    const nDrips = 1 + Math.floor(rnd(seed, 31) * 2);
-    for (let dd = 0; dd < nDrips; dd++) {
-      const dm = new THREE.MeshToonMaterial({ color: 0xffffff, transparent: true });
-      const drop = new THREE.Mesh(dripGeo, dm);
-      const dHull = new THREE.Mesh(dripGeo, DROP_OUTLINE);
-      dHull.scale.setScalar(1.045);
-      drop.add(dHull);
-      const baseR = 0.14 + rnd(seed + dd, 33) * 0.10;
-      drop.userData.baseR = baseR;
-      drop.position.set(
-        (rnd(seed + dd, 35) - 0.5) * w * 0.6,
-        FOUNDATION_TOP + h * 0.9,
-        d / 2 * 1.1 + 0.18
-      );
-      grp.add(drop);
-      drips.push({
-        mesh: drop, mat: dm, link: mat,
-        roofY: FOUNDATION_TOP + h * 0.9,
-        fallTo: FOUNDATION_TOP + 0.035,
-        period: 8 + rnd(seed + dd, 37) * 6,
-        phase: rnd(seed + dd, 39)
-      });
-    }
-  }
 }
 
 {
-  const dripGeo = teardropGeometry();
   const layers = [
     {
-      name: 'front', count: 24, seedOffset: 0, latExtra: 1.05, latJitter: 0.95, aOffset: 0.00,
+      name: 'front', count: 32, seedOffset: 0, latExtra: 1.05, latJitter: 0.95, aOffset: 0.00,
       wMin: 2.45, wVar: 2.05, hMin: 4.5, hVar: 6.0, dMin: 2.45, dVar: 1.75,
       meltMin: 0.55, meltVar: 0.80,
-      opts: { drips: true, winScale: 1, maxRows: 7, rowSpacing: 1.7, lean: 0.045, sat: 0.86, lightBase: 0.50, hullScale: 1.058 }
+      opts: { winScale: 1, maxRows: 7, rowSpacing: 1.7, lean: 0.045, sat: 0.86, lightBase: 0.50, hullScale: 1.058 }
     },
     {
-      name: 'infill', count: 30, seedOffset: 4200, latExtra: 2.25, latJitter: 4.80, aOffset: 0.19,
+      name: 'infill', count: 42, seedOffset: 4200, latExtra: 2.25, latJitter: 4.80, aOffset: 0.19,
       wMin: 0.95, wVar: 1.05, hMin: 2.9, hVar: 4.2, dMin: 0.90, dVar: 0.90,
       meltMin: 0.28, meltVar: 0.44,
       opts: { drips: false, winScale: 0.52, maxRows: 4, rowSpacing: 1.55, lean: 0.030, sat: 0.82, lightBase: 0.45, hullScale: 1.040, cleanWindows: true }
     },
     {
-      name: 'mid', count: 28, seedOffset: 1200, latExtra: 5.15, latJitter: 1.05, aOffset: 0.47,
+      name: 'mid', count: 38, seedOffset: 1200, latExtra: 5.15, latJitter: 1.05, aOffset: 0.47,
       wMin: 1.95, wVar: 2.35, hMin: 5.4, hVar: 7.0, dMin: 1.85, dVar: 1.35,
       meltMin: 0.38, meltVar: 0.55,
       opts: { drips: false, winScale: 0.78, maxRows: 5, rowSpacing: 1.95, lean: 0.035, sat: 0.78, lightBase: 0.43, hullScale: 1.047 }
     },
     {
-      name: 'far', count: 32, seedOffset: 2600, latExtra: 9.45, latJitter: 1.45, aOffset: 0.23,
+      name: 'far', count: 46, seedOffset: 2600, latExtra: 9.45, latJitter: 1.45, aOffset: 0.23,
       wMin: 1.45, wVar: 2.25, hMin: 6.2, hVar: 8.8, dMin: 1.35, dVar: 1.05,
       meltMin: 0.25, meltVar: 0.40,
       opts: { drips: false, winScale: 0.58, maxRows: 4, rowSpacing: 2.25, lean: 0.026, sat: 0.66, lightBase: 0.37, hullScale: 1.038, sideOnly: false }
@@ -835,8 +861,8 @@ function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts, dr
     for (const item of placed) {
       const latGap = Math.abs(candidate.lat - item.lat);
       const roadGap = angleGap(candidate.a, item.a);
-      const minLatGap = (candidate.width + item.width) * 0.5 + 0.62;
-      const minRoadGap = (candidate.depth + item.depth) * 0.5 + 0.96;
+      const minLatGap = (candidate.width + item.width) * 0.5 + 0.42;
+      const minRoadGap = (candidate.depth + item.depth) * 0.5 + 0.70;
       if (latGap < minLatGap && roadGap < minRoadGap) return true;
     }
     return false;
@@ -858,7 +884,7 @@ function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts, dr
     const perBlock = Math.ceil(layer.count / GRID_BLOCKS);
     const blockIdx = i % GRID_BLOCKS;
     const ordinal = Math.floor(i / GRID_BLOCKS);
-    const streetClearance = CROSS_ROAD_W / 2 + foot.depth * 0.58 + 0.62;
+    const streetClearance = CROSS_ROAD_W / 2 + foot.depth * 0.50 + 0.48;
     const baseA = gridBlockAngle(blockIdx, ordinal, perBlock, streetClearance, seed);
     const minLat = ROAD_W / 2 + 0.46 + foot.width * 0.5;
     const maxLat = CITY_EDGE_W - 0.52 - foot.width * 0.5;
@@ -921,52 +947,12 @@ function createCityBuilding({ side, seed, a, w, h, d, melt, lat, depth, opts, dr
 
         if (!slot) continue;
         placed.push(slot);
-        createCityBuilding({ side, seed, a: slot.a, w, h, d, melt, lat: slot.lat, depth, opts, dripGeo });
+        createCityBuilding({ side, seed, a: slot.a, w, h, d, melt, lat: slot.lat, depth, opts });
       }
     }
   }
 }
 
-// ---------- lo-fi road sign ----------
-{
-  const cv = document.createElement('canvas');
-  cv.width = 256; cv.height = 256;
-  const g = cv.getContext('2d');
-  g.fillStyle = '#080420';
-  g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = '#e840ff';
-  g.lineWidth = 7;
-  g.strokeRect(5, 5, 246, 246);
-  g.fillStyle = '#ff52ff';
-  g.font = 'bold 66px Arial, sans-serif';
-  g.textAlign = 'center';
-  g.fillText('LO-FI', 128, 86);
-  g.font = '58px serif';
-  g.fillStyle = '#ffe84f';
-  g.fillText('🐱', 80, 172);
-  g.fillStyle = '#ff52ff';
-  g.font = 'bold 54px serif';
-  g.fillText('♪', 182, 172);
-  const signTex = new THREE.CanvasTexture(cv);
-  signTex.colorSpace = THREE.SRGBColorSpace;
-
-  const signGrp = new THREE.Group();
-  const postMat = new THREE.MeshBasicMaterial({ color: 0x9999bb });
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.4, 8), postMat);
-  post.position.y = 1.7;
-  signGrp.add(post);
-  const panelMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide });
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), panelMat);
-  panel.position.y = 4.0;
-  signGrp.add(panel);
-  // bright neon frame so bloom picks it up
-  const frameMat = new THREE.MeshBasicMaterial({ color: 0xe840ff, transparent: true, opacity: 0.55 });
-  const frame = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 2.35), frameMat);
-  frame.position.set(0, 4.0, -0.02);
-  signGrp.add(frame);
-
-  onPlanet(signGrp, -0.15, -(roadHalfAng + 0.24), 0);
-}
 
 // ---------- floating wobble blobs ----------
 const blobs = [];
@@ -986,20 +972,129 @@ const blobs = [];
 const characterController = createCharacter(options.character, rnd);
 scene.add(characterController.group);
 
+// ---------- thin smog bands above the buildings ----------
+type SmogLayer = {
+  mesh: THREE.Mesh;
+  mat: THREE.MeshBasicMaterial;
+  speed: number;
+  baseX: number;
+  baseY: number;
+  baseZ: number;
+  phase: number;
+};
+
+const smogLayers: SmogLayer[] = [];
+
+{
+  const layerCount = 5;
+
+  for (let i = 0; i < layerCount; i++) {
+    const smogCv = document.createElement('canvas');
+    smogCv.width = 1024;
+    smogCv.height = 220;
+
+    const sg = smogCv.getContext('2d')!;
+    sg.clearRect(0, 0, smogCv.width, smogCv.height);
+
+    const verticalFade = sg.createLinearGradient(0, 0, 0, smogCv.height);
+    const alpha = 0.34 - i * 0.035;
+
+    verticalFade.addColorStop(0.00, 'rgba(0, 0, 0, 0)');
+    verticalFade.addColorStop(0.20, `rgba(35, 31, 42, ${alpha * 0.42})`);
+    verticalFade.addColorStop(0.48, `rgba(82, 72, 88, ${alpha})`);
+    verticalFade.addColorStop(0.76, `rgba(28, 26, 34, ${alpha * 0.52})`);
+    verticalFade.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
+
+    sg.fillStyle = verticalFade;
+    sg.fillRect(0, 0, smogCv.width, smogCv.height);
+
+    for (let p = 0; p < 54; p++) {
+      const x = rnd(i * 1000 + p, 41) * smogCv.width;
+      const y = 46 + rnd(i * 1000 + p, 43) * 118;
+      const rx = 110 + rnd(i * 1000 + p, 47) * 230;
+      const ry = 24 + rnd(i * 1000 + p, 53) * 54;
+
+      const puff = sg.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+      puff.addColorStop(0.00, `rgba(112, 98, 118, ${alpha * 0.42})`);
+      puff.addColorStop(0.55, `rgba(54, 47, 62, ${alpha * 0.26})`);
+      puff.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
+
+      sg.save();
+      sg.translate(x, y);
+      sg.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+      sg.fillStyle = puff;
+      sg.fillRect(-Math.max(rx, ry), -Math.max(rx, ry), Math.max(rx, ry) * 2, Math.max(rx, ry) * 2);
+      sg.restore();
+    }
+
+    const sideFade = sg.createLinearGradient(0, 0, smogCv.width, 0);
+    sideFade.addColorStop(0.00, 'rgba(0,0,0,0)');
+    sideFade.addColorStop(0.08, 'rgba(0,0,0,1)');
+    sideFade.addColorStop(0.92, 'rgba(0,0,0,1)');
+    sideFade.addColorStop(1.00, 'rgba(0,0,0,0)');
+    sg.globalCompositeOperation = 'destination-in';
+    sg.fillStyle = sideFade;
+    sg.fillRect(0, 0, smogCv.width, smogCv.height);
+    sg.globalCompositeOperation = 'source-over';
+
+    const tex = new THREE.CanvasTexture(smogCv);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      opacity: 0.52,
+      depthWrite: false,
+      depthTest: true,
+      fog: false,
+      side: THREE.DoubleSide,
+      blending: THREE.NormalBlending
+    });
+
+    const smogMesh = new THREE.Mesh(new THREE.PlaneGeometry(165 + i * 24, 8.2 + i * 1.2), mat);
+
+    smogMesh.position.set(0, 7.8 + i * 1.05, -52 - i * 7);
+    smogMesh.renderOrder = 3;
+
+    scene.add(smogMesh);
+
+    smogLayers.push({
+      mesh: smogMesh,
+      mat,
+      speed: 0.036 + i * 0.011,
+      baseX: (rnd(i, 31) - 0.5) * 16,
+      baseY: smogMesh.position.y,
+      baseZ: smogMesh.position.z,
+      phase: rnd(i, 37) * TAU
+    });
+  }
+}
+
 // ---------- floating music notes ----------
 function noteTexture(ch) {
   const c = document.createElement('canvas'); c.width = 64; c.height = 64;
   const g = c.getContext('2d');
   g.font = 'bold 48px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.strokeStyle = '#000'; g.lineWidth = 5; g.strokeText(ch, 32, 36);
-  g.fillStyle = '#fff'; g.fillText(ch, 32, 36);
+  // g.strokeStyle = '#000'; g.lineWidth = 10; g.strokeText(ch, 32, 36);
+  g.fillStyle = '#000000'; g.fillText(ch, 32, 36);
+  // second pass: crisp inner stroke so the outline reads at small sizes
+  g.strokeStyle = '#111'; g.lineWidth = 3; g.strokeText(ch, 32, 36);
   return new THREE.CanvasTexture(c);
 }
 const notes = [];
 for (let i = 0; i < 3; i++) {
-  const m = new THREE.SpriteMaterial({ map: noteTexture(i % 2 ? '♪' : '♫'), transparent: true, fog: false });
+  const m = new THREE.SpriteMaterial({
+    map: noteTexture(i % 2 ? '♪' : '♫'),
+    transparent: true,
+    fog: false,
+    depthWrite: false,
+    depthTest: true
+  });
   const s = new THREE.Sprite(m);
   s.scale.set(0.55, 0.55, 1);
+  s.renderOrder = 30;
   scene.add(s);
   notes.push({ s, m, i });
 }
@@ -1009,40 +1104,23 @@ let camZrot = 0;
 let last = performance.now() / 1000;
 const _c = new THREE.Color();
 
-// --- the slow, relaxing drip cycle: gather -> bob, bob, bob -> release -> fall -> splat -> reform ---
-function animateDrips(t) {
-  for (const dp of drips) {
-    const u = ((t / dp.period) + dp.phase) % 1;
-    const m = dp.mesh, baseR = m.userData.baseR;
-    let y, sx, sy, op = 1;
-    if (u < 0.72) {
-      // bobbing: three lazy dips, each reaching a little lower, like it can't quite let go
-      const k = u / 0.72;
-      const dip = 0.5 - 0.5 * Math.cos(k * 3 * TAU);     // 3 bobs
-      const reach = 0.12 + 0.55 * k * k;                  // each bob stretches further
-      y = dp.roofY - dip * reach;
-      const grow = 0.55 + 0.45 * k;                       // the drop swells as it gathers
-      sx = grow * (1 - 0.18 * dip);
-      sy = grow * (1 + 0.45 * dip);                       // stretches as it dips
-    } else if (u < 0.92) {
-      // release: it finally lets go
-      const f = (u - 0.72) / 0.20;
-      y = dp.roofY - (dp.roofY - dp.fallTo) * f * f;      // ease-in fall
-      sx = 0.78; sy = 1.65;
-    } else {
-      // splat at the sidewalk, fading away to reform up top
-      const f = (u - 0.92) / 0.08;
-      y = dp.fallTo;
-      sx = 1.4 + f * 0.6; sy = 0.32;
-      op = 1 - f;
-    }
-    m.position.y = y;
-    m.scale.set(baseR * sx, baseR * sy, baseR * sx);
-    dp.mat.opacity = op;
-    // drop wears its building's color, brighter so it reads against the dark facade
-    dp.mat.color.copy(dp.link.color).offsetHSL(0.03, 0.08, 0.28);
-  }
+const groundGradientStops = [
+  new THREE.Color(0x5d353b),
+  new THREE.Color(0x2b252d),
+  new THREE.Color(0x37485e),
+  new THREE.Color(0x252933),
+  new THREE.Color(0x395444),
+  new THREE.Color(0x2a2428)
+];
+
+function rollingGroundColor(out, phase) {
+  const p = ((phase % 1) + 1) % 1;
+  const scaled = p * groundGradientStops.length;
+  const idx = Math.floor(scaled) % groundGradientStops.length;
+  const next = (idx + 1) % groundGradientStops.length;
+  return out.lerpColors(groundGradientStops[idx], groundGradientStops[next], scaled - idx);
 }
+
 
 // --- 90s line boil: the world's ink re-registers a few times a second ---
 let lastBoilIdx = -1;
@@ -1070,63 +1148,130 @@ function frame() {
   planet.rotation.x = camZrot;
 
   paintSky(t);
-  paintSun(t);
-  sunMesh.position.y = 9 + Math.sin(t * BEAT * TAU / 8) * 0.6;
+  if (moonOn) {
+    paintMoon(t);
+    sunMesh.position.set(-7.5, 12.5 + Math.sin(t * BEAT * TAU / 10) * 0.35, -95);
+    sunMesh.scale.setScalar(0.92);
+  } else {
+    paintSun(t);
+    sunMesh.position.set(0, 9 + Math.sin(t * BEAT * TAU / 8) * 0.6, -95);
+    sunMesh.scale.setScalar(1);
+  }
 
   // Scene breathes slowly within the warm 80s/90s sunset palette
-  const breathe = Math.sin(t * 0.07) * 0.5 + 0.5;  // 45 s cycle, 0→1
+  // const breathe = Math.sin(t * 0.07) * 0.5 + 0.5;  // 45 s cycle, 0→1
 
-  // Fog: warm purple, never leaves the sunset zone
-  scene.fog.color.setHSL(0.728 + breathe * 0.018, 0.55, 0.11);
+  // // Fog: dusty muted haze
+  // scene.fog.color.setHSL(0.725 + breathe * 0.010, 0.22, 0.13);
+  const breathe = reduceMotion ? 0.5 : 0.5 + Math.sin(t * 0.07) * 0.5;
 
-  // Buildings: fixed 80s/90s hue slots — purple, teal, indigo, pink-violet, navy, violet
-  // Purple/indigo/violet range — matches the concept's dark cityscape palette
+  if (moonOn) {
+    scene.fog.color.setHSL(0.64, 0.08, 0.075);
+    scene.fog.near = 34;
+    scene.fog.far = 108;
+    hemiLight.color.setHSL(0.62, 0.14, 0.48);
+    hemiLight.groundColor.setHSL(0.68, 0.18, 0.10);
+    hemiLight.intensity = 0.72;
+    sunLight.color.setHSL(0.13, 0.10, 0.74);
+    sunLight.intensity = 0.34;
+    rim.color.setHSL(0.58, 0.16, 0.62);
+    rim.intensity = 0.22;
+  } else {
+    scene.fog.color.setHSL(0.725, 0.16, 0.10);
+    scene.fog.near = 42;
+    scene.fog.far = 115;
+    hemiLight.color.set(0x9080b8);
+    hemiLight.groundColor.set(0x2a1440);
+    hemiLight.intensity = 0.90;
+    sunLight.color.set(0xd4b890);
+    sunLight.intensity = 0.65;
+    rim.color.set(0x88a8c0);
+    rim.intensity = 0.28;
+  }
+
+  // Buildings: muted, faded lofi palette — dusty purples, grayed mauve, washed indigo
   const BLDG_HUES = [0.718, 0.688, 0.660, 0.760, 0.700, 0.730, 0.750, 0.698, 0.672];
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i];
-    const bh = BLDG_HUES[b.seed % BLDG_HUES.length] + Math.sin(t * 0.12 + b.seed * 0.6) * 0.018;
-    const bl = (b.lightBase ?? 0.32) * 0.80 + 0.03 * Math.sin(t * 2.2 + b.seed * 1.7);
-    b.mat.color.setHSL(bh, 0.72, bl);
+    const bh = BLDG_HUES[b.seed % BLDG_HUES.length] + Math.sin(t * 0.08 + b.seed * 0.6) * 0.010;
+    const bl = (b.lightBase ?? 0.32) * 0.72 + 0.015 * Math.sin(t * 1.4 + b.seed * 1.7);
+    b.mat.color.setHSL(bh, 0.28, bl);   // saturation 0.28 = washed out, faded
     for (let wj = 0; wj < b.winMats.length; wj++) {
       const phw = rnd(b.seed * 13 + wj, 61) * TAU;
-      const glow = 0.5 + 0.5 * Math.sin(t * 2.6 + phw);
-      // Warm amber window light — subtle, some rooms lit, some dark
-      b.winMats[wj].color.setHSL(0.10 + glow * 0.04, 0.80, 0.55 + glow * 0.18);
-      b.winMats[wj].opacity = 0.20 + glow * 0.45;
+      const glow = 0.5 + 0.5 * Math.sin(t * 1.8 + phw);
+      // Dim warm amber — some rooms softly lit like someone's home
+      b.winMats[wj].color.setHSL(0.10 + glow * 0.03, 0.45, 0.48 + glow * 0.12);
+      b.winMats[wj].opacity = 0.10 + glow * 0.28;
     }
   }
 
-  // Road markings: warm cream/white — not rainbow
-  for (let i = 0; i < dashMats.length; i++) {
-    dashMats[i].color.setHSL(0.13, 0.35, 0.88);
-  }
-  for (let i = 0; i < stripMats.length; i++) {
-    stripMats[i].color.setHSL(0.12, 0.25, 0.90);
-  }
-  for (let i = 0; i < crosswalkMats.length; i++) {
-    crosswalkMats[i].color.setHSL(0.12, 0.25, 0.90);
+  // Road markings + neon strobe
+  if (neonOn) {
+    // Slow gradient through a muted lofi palette: dusty teal → soft violet → dusky rose → warm mauve
+    // Range h=0.48–0.90, saturation kept low so it never pops neon-bright.
+    const nPhase = (t * 0.018) % 1.0;   // ~55 s full cycle — very slow
+    const nh = 0.48 + 0.42 * nPhase;    // teal (0.48) → violet (0.72) → rose (0.90)
+    const ns = 0.48 + 0.10 * Math.sin(t * 0.12);   // saturation 0.38–0.58
+    const nl = 0.40 + 0.05 * Math.sin(t * 0.20);   // lightness 0.35–0.45, never blown out
+    for (let i = 0; i < dashMats.length; i++)      dashMats[i].color.setHSL(nh, ns, nl);
+    for (let i = 0; i < stripMats.length; i++)     stripMats[i].color.setHSL(nh, ns, nl);
+    for (let i = 0; i < crosswalkMats.length; i++) crosswalkMats[i].color.setHSL(nh, ns * 0.85, nl * 0.90);
+    neonFootLight.color.setHSL(nh, ns, 0.38);
+    neonFootLight.intensity = 0.70;    // softer upward glow
+    bloomPass.strength = 0.50;
+    bloomPass.threshold = 0.88;
+    const roll = t * 0.035;
+    const groundColor = rollingGroundColor(_c, roll);
+    for (let i = 0; i < dashMats.length; i++) {
+      dashMats[i].color.copy(groundColor);
+    }
+    for (let i = 0; i < stripMats.length; i++) {
+      stripMats[i].color.copy(groundColor);
+    }
+    for (let i = 0; i < crosswalkMats.length; i++) {
+      crosswalkMats[i].color.copy(groundColor);
+    }
+    neonFootLight.color.copy(groundColor);
+    neonFootLight.intensity = 0.46;
+    bloomPass.strength = 0.39;
+    bloomPass.threshold = 0.94;
+  } else {
+    // warm cream road markings
+    for (let i = 0; i < dashMats.length; i++)      dashMats[i].color.setHSL(0.13, 0.35, 0.88);
+    for (let i = 0; i < stripMats.length; i++)     stripMats[i].color.setHSL(0.12, 0.25, 0.90);
+    for (let i = 0; i < crosswalkMats.length; i++) crosswalkMats[i].color.setHSL(0.12, 0.25, 0.90);
+    neonFootLight.intensity = Math.max(0, neonFootLight.intensity - dt * 4);
+    bloomPass.strength = 0.38;
+    bloomPass.threshold = 0.97;
   }
 
-  // Cloud blobs: warm lavender tones
+  // Thin smog bands: slow horizontal drift above the skyline only
+  for (const sl of smogLayers) {
+    sl.mesh.position.x = sl.baseX + Math.sin(t * sl.speed + sl.phase) * 7.5;
+    sl.mesh.position.y = sl.baseY + Math.sin(t * 0.038 + sl.phase) * 0.28;
+    sl.mesh.position.z = sl.baseZ + Math.sin(t * 0.025 + sl.phase) * 1.2;
+    sl.mat.opacity = 0.46 + 0.12 * Math.sin(t * 0.050 + sl.phase);
+  }
+
+  // Cloud blobs: very subtle, barely visible
   const CLOUD_HUES = [0.720, 0.748, 0.680, 0.770, 0.700, 0.735, 0.760, 0.690];
   for (const bl of blobs) {
-    bl.b.position.x += dt * (0.5 + bl.i * 0.12);
+    bl.b.position.x += dt * (0.25 + bl.i * 0.06);
     if (bl.b.position.x > 45) bl.b.position.x = -45;
-    bl.m.color.setHSL(CLOUD_HUES[bl.i % CLOUD_HUES.length], 0.52, 0.68 + breathe * 0.10);
+    bl.m.color.setHSL(CLOUD_HUES[bl.i % CLOUD_HUES.length], 0.20, 0.52 + breathe * 0.06);
+    bl.m.opacity = 0.08;
   }
 
-  // Music notes: pink, gold, purple — always warm
+  // Music notes: muted, soft — they drift gently
   const NOTE_HUES = [0.860, 0.120, 0.720];
   for (const n of notes) {
-    const life = (t * 0.45 + n.i / 3) % 1;
+    const life = (t * 0.28 + n.i / 3) % 1;
     const side = n.i % 2 ? 1 : -1;
-    n.s.position.set(side * (1.1 + life * 0.9 + Math.sin(t * 2 + n.i * 2) * 0.15), 2.5 + life * 1.9, 0.4);
-    n.m.opacity = 1 - life;
-    n.m.color.setHSL(NOTE_HUES[n.i % 3], 0.95, 0.80);
+    n.s.position.set(side * (1.1 + life * 0.9 + Math.sin(t * 1.2 + n.i * 2) * 0.10), 2.5 + life * 1.6, 0.4);
+    n.m.opacity = (1 - life) * 0.55;
+    n.m.color.setHSL(NOTE_HUES[n.i % 3], 0.40, 0.68);
   }
 
-  // drips ride the smooth clock — slow, hypnotic, never rushed
-  if (!reduceMotion) animateDrips(t);
 
   // 90s ink boil on its own gentle clock
   if (!reduceMotion) {
@@ -1160,6 +1305,8 @@ return {
   renderer,
   scene,
   camera,
+  setNeon(on: boolean) { neonOn = on; },
+  setMoon(on: boolean) { moonOn = on; },
   destroy() {
     disposed = true;
     if (rafId) cancelAnimationFrame(rafId);

@@ -5,6 +5,8 @@
 
   export let scene: SceneDefinition;
   export let character: CharacterDefinition;
+  export let neonOn: boolean = false;
+  export let moonOn: boolean = false;
 
   let host: HTMLDivElement;
   let experience: ReturnType<typeof createTrippy90sScene> | null = null;
@@ -32,6 +34,9 @@
     }
   }
 
+  $: if (experience) experience.setNeon?.(neonOn);
+  $: if (experience) experience.setMoon?.(moonOn);
+
   onDestroy(() => {
     experience?.destroy();
   });
@@ -54,7 +59,7 @@
     display: block;
     width: 100%;
     height: 100%;
-    cursor: none;
+    cursor: default;
   }
 
   #vignette {
