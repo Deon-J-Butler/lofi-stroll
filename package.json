@@ -1,0 +1,21 @@
+{
+  "name": "lofi-stroll-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "latest",
+    "svelte": "^5.0.0",
+    "three": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@types/three": "^0.184.1",
+    "typescript": "latest"
+  }
+}
