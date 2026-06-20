@@ -36,6 +36,11 @@ Thumbs.db
 !.vscode/settings.json
 
 # Local AI assistant/session config
+.agents/
 .claude/
+.superpowers/
+.codex/
+docs/
+memory/
 
 # Do not ignore .github/ — GitHub Actions workflows belong in git.
