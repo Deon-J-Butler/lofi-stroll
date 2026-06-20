@@ -1,5 +1,7 @@
 <script lang="ts">
   import ThreeStage from './lib/components/ThreeStage.svelte';
+  import IllustratedStage from './lib/illustrated/IllustratedStage.svelte';
+  import { illustratedMode } from './lib/illustrated/store';
   import { scenes } from './lib/registry/scenes';
   import { characters } from './lib/registry/characters';
 
@@ -35,7 +37,13 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<ThreeStage scene={selectedScene} character={selectedCharacter} {gradientOn} {moonOn} />
+<div style={$illustratedMode ? 'display:none' : ''}>
+  <ThreeStage scene={selectedScene} character={selectedCharacter} {gradientOn} {moonOn} />
+</div>
+
+<div style={$illustratedMode ? '' : 'display:none'} class="illustrated-wrap">
+  <IllustratedStage sceneId={selectedSceneId} active={$illustratedMode} />
+</div>
 
 <section class:collapsed={!studioOpen} class="studio-panel" aria-label="Lo-Fi Stroll Studio controls">
   <button class="panel-toggle" on:click={() => (studioOpen = !studioOpen)} aria-label="Toggle studio panel">
@@ -69,6 +77,13 @@
     </button>
     <button class="gradient-toggle" class:active={gradientOn} on:click={() => (gradientOn = !gradientOn)}>
       {gradientOn ? 'RGB on' : 'RGB off'}
+    </button>
+    <button
+      class="illustrated-toggle"
+      class:active={$illustratedMode}
+      on:click={() => illustratedMode.update(v => !v)}
+    >
+      {$illustratedMode ? 'illustrated' : '3D'}
     </button>
     <div class="keys">F fullscreen · H panel</div>
   {/if}
@@ -193,6 +208,31 @@
     letter-spacing: 0.12em;
     color: rgba(255, 255, 255, 0.66);
     text-transform: uppercase;
+  }
+
+  .illustrated-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .illustrated-toggle {
+    margin-top: 12px;
+    width: 100%;
+    color: #a4c4b8;
+    border-color: rgba(164, 196, 184, 0.42);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .illustrated-toggle.active {
+    background: rgba(92, 140, 122, 0.14);
+    border-color: rgba(154, 200, 184, 0.72);
+    color: #c4e4d8;
+    box-shadow: 0 0 10px rgba(100, 180, 150, 0.22);
   }
 
   #hint {
