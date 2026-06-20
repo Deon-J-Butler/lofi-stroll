@@ -40,6 +40,27 @@ Controls:
 - `F` fullscreen
 - `H` hide/show the studio panel
 
+## 2D illustrated mode
+
+The `2D` studio toggle switches to a layered stop-motion renderer:
+
+- 12 transparent painterly character frames at 5 FPS
+- 8 painted perspective keyframes per scene over a 56-second loop
+- day/night lighting variants for all three illustrated scenes
+- a stronger forward push during every held background frame
+- animated canvas overlays for clouds, fireflies, dappled light, and smog
+- on-demand scene preloading so scene switches do not expose blank frames
+- 2D mode locks the character to 90s Retro Kid and disables RGB
+
+Timing values live in `src/lib/illustrated/sceneFrames.ts`:
+
+- `CHARACTER_FPS`
+- `BACKGROUND_CYCLE_SECONDS`
+- `BACKGROUND_TRANSITION_MS`
+- `BACKGROUND_HOLD_ZOOM`
+
+Run `npm run dev`, select `2D`, and switch among the three scenes to verify the walk cycle and environment motion. Use `npm run test` for overlay/animation tests.
+
 ## GitHub Pages
 
 This is a Vite app, so GitHub Pages should serve the built `dist/` output, not the raw `src/` files.

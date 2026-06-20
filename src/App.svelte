@@ -12,7 +12,11 @@
   let gradientOn = false;
   let moonOn = false;
   let hintGone = false;
+  let last3DCharacterId = selectedCharacterId;
 
+  $: availableCharacters = $illustratedMode
+    ? characters.filter((character) => character.id === 'retro-kid')
+    : characters;
   $: selectedScene = scenes.find((item) => item.id === selectedSceneId) ?? scenes[0];
   $: selectedCharacter = characters.find((item) => item.id === selectedCharacterId) ?? characters[0];
 
@@ -33,6 +37,20 @@
     if (key === 'f') toggleFullscreen();
     if (key === 'h') studioOpen = !studioOpen;
   }
+
+  function toggleIllustratedMode() {
+    illustratedMode.update((current) => {
+      const next = !current;
+      if (next) {
+        last3DCharacterId = selectedCharacterId;
+        selectedCharacterId = 'retro-kid';
+        gradientOn = false;
+      } else {
+        selectedCharacterId = last3DCharacterId;
+      }
+      return next;
+    });
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -42,7 +60,7 @@
 </div>
 
 <div style={$illustratedMode ? '' : 'display:none'} class="illustrated-wrap">
-  <IllustratedStage sceneId={selectedSceneId} active={$illustratedMode} />
+  <IllustratedStage sceneId={selectedSceneId} active={$illustratedMode} night={moonOn} />
 </div>
 
 <section class:collapsed={!studioOpen} class="studio-panel" aria-label="Lo-Fi Stroll Studio controls">
@@ -64,7 +82,7 @@
     <label>
       Character
       <select bind:value={selectedCharacterId}>
-        {#each characters as character}
+        {#each availableCharacters as character}
           <option value={character.id}>{character.label}</option>
         {/each}
       </select>
@@ -75,15 +93,20 @@
     <button class="mode-toggle" class:active={moonOn} on:click={() => (moonOn = !moonOn)}>
       {moonOn ? 'night' : 'day'}
     </button>
-    <button class="gradient-toggle" class:active={gradientOn} on:click={() => (gradientOn = !gradientOn)}>
-      {gradientOn ? 'RGB on' : 'RGB off'}
+    <button
+      class="gradient-toggle"
+      class:active={gradientOn}
+      disabled={$illustratedMode}
+      on:click={() => (gradientOn = !gradientOn)}
+    >
+      {$illustratedMode ? 'RGB unavailable in 2D' : gradientOn ? 'RGB on' : 'RGB off'}
     </button>
     <button
       class="illustrated-toggle"
       class:active={$illustratedMode}
-      on:click={() => illustratedMode.update(v => !v)}
+      on:click={toggleIllustratedMode}
     >
-      {$illustratedMode ? 'illustrated' : '3D'}
+      {$illustratedMode ? '2D' : '3D'}
     </button>
     <div class="keys">F fullscreen · H panel</div>
   {/if}
@@ -193,6 +216,12 @@
     border-color: rgba(188, 154, 166, 0.72);
     color: #d8c4cc;
     box-shadow: 0 0 10px rgba(140, 110, 120, 0.22);
+  }
+
+  .gradient-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+    box-shadow: none;
   }
 
   .mode-toggle.active {

@@ -3,4 +3,5 @@ export interface FrameState {
   sceneId: string
   canvasW: number
   canvasH: number
+  lighting?: 'day' | 'night'
 }
