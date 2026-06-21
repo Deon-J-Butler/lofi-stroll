@@ -2,28 +2,31 @@
 
 **Lo-Fi Strolling Studio** is an experimental Three.js creative-coding project for building animated lo-fi walking scenes with swappable characters, scenes, and visual presets.
 
-The current prototype is a trippy 90s-inspired city road: a curved planet-like street, warped neon buildings, a striped melting sun, music notes, line-boil motion, and glowing footstep lights. The first character pass is a custom 90s chibi walker wearing a backward cap, headphones, oversized open jersey, jean shorts, and retro basketball sneakers.
+The current prototype features three fully realized worlds — a trippy 90s city road, a dense jungle trail, and a Megamind-style metropolis avenue — each playable in day or night mode. The default character is a custom 90s chibi walker in a black lo-fi hoodie (hood up), full-length jeans, chunky black sneakers, a backward cap, and over-ear headphones, with floating music notes drifting off them.
 
-This is not the final art direction yet. The project is being shaped into a reusable “strolling studio” where future scenes can swap in different characters and worlds without rewriting the render loop.
+This is not the final art direction yet. The project is being shaped into a reusable "strolling studio" where scenes and characters can be swapped without rewriting the render loop.
 
 ## Current status
 
 The project has moved from a single HTML experiment into a **Svelte + TypeScript + Vite + Three.js** app.
 
-Current focus:
+Three scenes are complete and stable:
 
-- Keep the original trippy 90s scenery stable.
-- Build a clean character/scene registry system.
-- Use a custom rigged/procedural 90s chibi as the default walker.
-- Build fully procedural characters (no GLB pipeline) — e.g. the flying hero.
-- Support future character and scenery swaps.
+- **Trippy 90s City Road** — curved planet road, warped neon buildings, striped sun, music notes, line-boil animation
+- **Jungle Trail** — dirt path through oversized trees, orange/yellow/red day palette, deep blue/purple night with stars and glowing eyes
+- **MetroCity Avenue** — art-deco towers, Space-Needle saucer, Statue of Liberty, lit windows at night
+
+Two characters are registered and ready:
+
+- **90s Retro Kid** — the default lo-fi walker (hoodie, jeans, sneakers, floating music notes)
+- **Flying Hero** — procedural superhero in a forward-leaning flight pose (pink suit, starred cape, speed lines, power aura)
 
 Long-term direction:
 
-- 90s lo-fi walking scenes.
-- Superhero flying scenes.
-- Adventure/cartoon-inspired goof-off scenes.
-- Custom stylized characters with reusable movement controllers.
+- 90s lo-fi walking scenes
+- Superhero flying scenes
+- Adventure/cartoon-inspired goof-off scenes
+- Custom stylized characters with reusable movement controllers
 
 ## Run it
 
@@ -32,6 +35,7 @@ npm install
 npm run dev        # local dev server
 npm run build      # production build
 npm run preview    # preview production build
+npm run test       # unit tests (Vitest)
 npx tsc --noEmit   # type check
 ```
 
@@ -42,22 +46,20 @@ Controls:
 
 ## 2D illustrated mode
 
-The `2D` studio toggle switches to a layered stop-motion renderer:
+The `2D` studio toggle switches to a layered canvas renderer:
 
-- 12 transparent painterly character frames at 5 FPS
-- 8 painted perspective keyframes per scene over a 56-second loop
-- day/night lighting variants for all three illustrated scenes
-- a stronger forward push during every held background frame
-- animated canvas overlays for clouds, fireflies, dappled light, and smog
-- on-demand scene preloading so scene switches do not expose blank frames
+- A procedurally drawn character (8 poses, 8 FPS) with floating music notes
+- 8 painted background WebP keyframes per scene per lighting variant, looped over ~56 seconds
+- Day/night variants for all three scenes (`trippy-90s`, `trippy-90s-night`, `jungle`, `jungle-night`, `metropolis`, `metropolis-night`)
+- Animated canvas overlays for clouds, fireflies, dappled light, and smog
+- A gentle forward push (Ken Burns) during each held background frame
+- On-demand scene preloading so scene switches do not expose blank frames
 - 2D mode locks the character to 90s Retro Kid and disables RGB
 
-Timing values live in `src/lib/illustrated/sceneFrames.ts`:
+Timing values in `src/lib/illustrated/stopMotion.ts`:
 
-- `CHARACTER_FPS`
-- `BACKGROUND_CYCLE_SECONDS`
-- `BACKGROUND_TRANSITION_MS`
-- `BACKGROUND_HOLD_ZOOM`
+- `createStopMotionClock(fps)` — controls character animation rate
+- Background cycle length and transition timing are set in each scene layer
 
 Run `npm run dev`, select `2D`, and switch among the three scenes to verify the walk cycle and environment motion. Use `npm run test` for overlay/animation tests.
 
@@ -71,11 +73,7 @@ The current `vite.config.ts` uses:
 base: '/lofi-stroll'
 ```
 
-If the GitHub repo name changes, update `base` to match the repo path. For example, if the repo is named `lofi-strolling`, use:
-
-```ts
-base: '/lofi-strolling/'
-```
+If the GitHub repo name changes, update `base` to match the repo path.
 
 Recommended deployment path:
 
@@ -92,12 +90,17 @@ Do **not** add `.github/` to `.gitignore`; deployment workflows should be commit
 src/lib/
   registry/      scene, character, and preset metadata
     types.ts       CharacterDefinition, WalkSettings, StepGlowSettings, SceneDefinition, StudioPreset
-    characters.ts  registered characters: retro-kid default, flying-hero
-    scenes.ts      registered scenes: trippy-90s
+    characters.ts  registered characters: retro-kid, flying-hero
+    scenes.ts      registered scenes: trippy-90s, jungle, metropolis
     presets.ts     scene + character combinations
 
   scenes/        world builders
     createTrippy90sScene.ts
+    createJungleScene.ts
+    createMetropolisScene.ts
+    common/
+      planetStage.ts      shared curved-planet road surface + prop scatter
+      cameraRig.ts        shared camera + dolly setup
 
   characters/    character controllers
     controller.ts            shared CharacterController contract
@@ -112,11 +115,23 @@ src/lib/
   debug/         model and orientation helpers
     orientationGizmo.ts      axes + FRONT/BACK markers
 
+  illustrated/   2D canvas renderer
+    stopMotion.ts            stop-motion clock (fps → discrete frame index)
+    sketch.ts                rough-fill and hatch-shadow canvas helpers
+    store.ts                 Svelte store toggling illustrated mode
+    layers/
+      character2D.ts         procedural chibi walker (8 poses, canvas)
+      road.ts                road surface overlay
+      buildingCorridor.ts    shared building strip renderer
+      scenes/
+        trippy90s2D.ts       Trippy 90s 2D scene layer
+        metropolis2D.ts      MetroCity 2D scene layer
+    assets/
+      character/             walk cycle image references (v1, walk-v2, walk-v3)
+      background-frames/     8 WebP keyframes × 6 lighting variants
+
   components/    Svelte shell components
     ThreeStage.svelte        mounts/destroys the Three.js experience
-
-scripts/
-  inspect-glb.mjs            CLI helper for checking GLB animations, skins, meshes, hierarchy, and bounds
 ```
 
 The scene stays character-agnostic. It calls:
@@ -147,17 +162,18 @@ Default character:
 controller: 'retro-kid'
 ```
 
-This is the current custom/procedural character direction. It is built from jointed Three.js primitives so the walk cycle drives real pivots instead of only bobbing a static mesh.
+Fully procedural, jointed character built from Three.js primitives so the walk cycle drives real pivots instead of only bobbing a static mesh.
 
 Design goals:
 
-- chibi proportions
+- chibi proportions — stout build, short thick legs, big head
 - brown skin
-- big backward snapback/trucker-style cap
+- black lo-fi hoodie with hood up
+- backward snapback cap visible under the hood
 - over-ear headphones
-- oversized open jersey blowing in the wind
-- jean shorts barely visible under the jersey
-- chunky sneakers inspired by Retro Jordan 3 True Blue colors
+- full-length dark-wash jeans
+- chunky black sneakers with cream midsole and red accent
+- floating music notes drifting off the character into every scene
 - readable back-facing silhouette
 - relaxed lo-fi walk cycle
 - glowing footstep rhythm
@@ -180,21 +196,21 @@ group
             hands
         neck
           head
-            cap
+            cap (backward)
             headphones
-        jersey panels
+            afro fringe
+        hoodie back panel (cloth)
 ```
 
-### Flying Hero (MetroCity)
+### Flying Hero (MetroCity / Jungle)
 
-Flying superhero character (designed for MetroCity, swappable everywhere):
+Procedural flying superhero, swappable across all scenes:
 
 ```ts
 controller: 'flying-hero'
 ```
 
-Like the retro-kid, this is a fully procedural, jointed character — but instead of a
-walk cycle it holds a forward-leaning flight pose and runs a *flight idle*.
+Instead of a walk cycle it holds a forward-leaning flight pose and runs a *flight idle*.
 
 Design goals:
 
@@ -265,13 +281,9 @@ The world can stay surreal and warped, but the character needs to be clean, read
 
 ### Trippy 90s City Road
 
-Scene id:
-
 ```ts
-trippy-90s
+id: 'trippy-90s'
 ```
-
-This is the current baseline world:
 
 - curved road on a planet-like surface
 - melted/wobbly city buildings
@@ -282,9 +294,44 @@ This is the current baseline world:
 - stop-motion character rhythm
 - glowing footstep lights
 
-This scene should remain visually stable while character work continues.
+### Jungle Trail
+
+```ts
+id: 'jungle'
+```
+
+- dirt path through oversized jungle trees and frayed grass
+- day palette: orange/yellow/red
+- night palette: deep blue/purple with stars, celestial bursts, and slowly flashing red eyes in the undergrowth
+- sun/moon toggle
+- tree props respect the flying hero's clearance corridor
+
+### MetroCity Avenue
+
+```ts
+id: 'metropolis'
+```
+
+- bright Megamind-style metropolis with imposing towers and art-deco setbacks
+- Space-Needle saucer tower
+- Statue of Liberty silhouette
+- fluffy clouds and a yellow sun
+- every window lights up at night (sun/moon toggle)
+- designed for both the grounded walker and the flying hero
 
 Future scenes should live in `src/lib/scenes/` and be registered in `src/lib/registry/scenes.ts`.
+
+## Presets
+
+Five scene + character combinations are registered in `src/lib/registry/presets.ts`:
+
+| Preset | Scene | Character |
+| --- | --- | --- |
+| Trippy 90s + Retro Kid | trippy-90s | retro-kid |
+| Jungle Trail + Retro Kid | jungle | retro-kid |
+| MetroCity Avenue + Retro Kid | metropolis | retro-kid |
+| MetroCity Avenue + Flying Hero | metropolis | flying-hero |
+| Jungle Trail + Flying Hero | jungle | flying-hero |
 
 ## Adding or tuning a character
 
@@ -305,7 +352,7 @@ pipeline. To add one:
   rotationY: 0,
   scale: 1,
   position: { x: 0, y: 0, z: 0 },
-  walk: {              // ground walkers use the full set; flyers reuse a few fields
+  walk: {
     strideHz: 1.25,
     legSwing: 0.55,
     windStrength: 1
@@ -352,14 +399,14 @@ Tune `rotationY`, `scale`, and `position` in the character registry until the ch
 | `pelvisYaw` | hip twist |
 | `pelvisRoll` | hip drop from side to side |
 | `torsoLean` | forward body lean |
-| `windStrength` | jersey/cloth billow strength |
+| `windStrength` | hoodie/cloth billow strength |
 
 ## Performance notes
 
 Current performance approach:
 
 - one Three.js render loop owned by the active scene
-- character updates are held to the scene’s stop-motion clock
+- character updates are held to the scene's stop-motion clock
 - geometries and materials are created once where practical
 - animation mutates pivots and small cloth buffers instead of rebuilding meshes
 - step glow uses lightweight planes/contact shadow/rim lighting
@@ -378,13 +425,9 @@ Avoid:
 Near-term:
 
 - refine the 90s Retro Kid proportions and silhouette
-- improve the oversized jersey wind motion
+- improve the hoodie cloth/wind motion
 - tune walk cycle readability from behind
 - polish character colors and outlines to better match the scene
-- add better orientation/model inspection tooling
-
-Next:
-
 - add a character preset editor panel
 - add scene presets and camera presets
 - add export/share settings
@@ -392,7 +435,6 @@ Next:
 
 Future:
 
-- superhero flying scene
 - Adventure Time-inspired walking scene
 - additional 90s lo-fi worlds
 - importable custom character packs
